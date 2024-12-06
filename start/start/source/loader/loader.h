@@ -1,0 +1,22 @@
+#ifndef LOADER_H
+#define LOADER_H
+
+#include "comm/boot_info.h"
+#include "comm/types.h"
+#include "comm/cpu_instr.h"
+
+void protect_mode_entry(void);
+
+typedef struct SMAP_entry{
+    uint32_t BaseL;
+    uint32_t BaseH;
+    uint32_t LengthL;
+    uint32_t LengthH;
+    uint32_t Type; //值为1则为可以使用的RAM空间
+    uint32_t ACPI;
+
+}__attribute__((packed)) SMAP_entry_t;
+
+
+
+#endif
