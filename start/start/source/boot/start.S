@@ -37,7 +37,7 @@ read_loader:
 	int $0x13			//磁盘读取
 	jc read_loader
 
-	// 跳转至c部分执行，再由c部分做一些处理
+	// 跳转至c部分执行, 再由c部分做一些处理
 	jmp boot_entry
 
 	jmp .
