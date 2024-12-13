@@ -5,7 +5,7 @@
 #define BOOT_RAM_REGION_MAX     10
 
 typedef struct _boot_info_t{
-    //描述每一块内存的信息
+    //鎻忚堪姣忎竴鍧楀唴瀛樼殑淇℃伅
     struct {
         uint32_t start;
         uint32_t size;
@@ -16,6 +16,6 @@ typedef struct _boot_info_t{
 
 }boot_info_t;
 
-#define SECTOP_SIZE 512
+#define SECTOR_SIZE 512
 #define SYS_KERNEL_LOAD_ADDR   (1024*1024)
 #endif
