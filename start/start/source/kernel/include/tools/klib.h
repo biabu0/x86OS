@@ -22,4 +22,16 @@ int kernel_memcmp(void * d1, void * d2, int size);
 void kernel_sprintf(char * buf, const char *fmt, ...);
 void kernel_vsprintf(char * buf, const char *fmt, va_list args);
 
+//没有定义RELEASE，说明在调试过程中
+#ifndef RELEASE
+#define ASSERT(expr)    \
+    if (!(expr)) panic(__FILE__, __LINE__, __func__, #expr)
+        //编译器内置的宏，编译的时候会替换
+
+//传入哪个文件，哪一行，哪个函数，出现什么问题
+void panic(const char * file, int line, const char * func, const char * cond);
+#else
+#define ASSERT(expr)   ((void)0)
+#endif
+
 #endif
