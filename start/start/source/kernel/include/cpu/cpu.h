@@ -13,7 +13,7 @@ typedef struct _segment_desc_t{
     uint8_t base31_24;
 }segment_desc_t;
 
-//IDT表项
+//IDT表的表项——————中断门
 typedef struct _date_desc_t{
     uint16_t offset15_0;
     uint16_t selector;
@@ -28,14 +28,14 @@ typedef struct _date_desc_t{
 
 #pragma pack()
 
-#define SEG_G (1 << 15)     //G标志�?
-#define SEG_D (1 << 14)     //为了兼容性支�?16位与32位，控制代码段是32位还�?16位，设置�?1�?32位代�?
-// L与AVL与项目无�?
+#define SEG_G (1 << 15)     //G标志�?
+#define SEG_D (1 << 14)     //为了兼容性支�?16位与32位，控制代码段是32位还�?16位，设置�?1�?32位代�?
+// L与AVL与项目无�?
 #define SEG_P_PRESENT   (1 << 7)    //     指示段描述符是否存在，存在为1
-#define SEG_DPL0 (0 << 5)      //权限相关，操作系统运行在处理器上，可以给与较高的权限级别�?
+#define SEG_DPL0 (0 << 5)      //权限相关，操作系统运行在处理器上，可以给与较高的权限级别�?
                     //可以运行一些特殊的指令访问特殊的空间，如果是应用程序可以给低权限；
 #define SEG_DPL3  (3 << 5)
-#define SEG_S_SYSTEM    (0 << 4)       //是系统段还是普通的代码�?
+#define SEG_S_SYSTEM    (0 << 4)       //是系统段还是普通的代码�?
 #define SEG_S_NORMAL    (1 << 4)
 
 #define SEG_TYPE_CODE   (1 << 3)

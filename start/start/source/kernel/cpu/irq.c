@@ -10,9 +10,17 @@
 static gate_desc_t idt_table[IDT_TABLE_NR];	// ?????
 
 static void dump_core_regs(exception_frame_t * frame){
+    uint32_t esp, ss;
+    if (frame->cs & 0x7) {
+        ss = frame->ds;
+        esp = frame->esp;
+    } else {
+        ss = frame->ss3;
+        esp = frame->esp3;
+    }
     log_printf("IRQ: %d, error code : %d", frame->num, frame->error_code);
     log_printf("CS: %d\r\nDS: %d\r\nES: %d\r\nSS: %d\r\nFS: %d\r\nGS: %d",
-        frame->cs, frame->ds, frame->es, frame->ds, frame->fs, frame->gs
+        frame->cs, frame->ds, frame->es, ss, frame->fs, frame->gs
     );
     log_printf("EAX: 0x%x\r\n"
         "EBX: 0x%x\r\n"
@@ -23,7 +31,7 @@ static void dump_core_regs(exception_frame_t * frame){
         "EBP:0x%x\r\n"
         "ESP:0x%x",
         frame->eax, frame->ebx, frame->ecx, frame->edx,frame->edi, 
-        frame->esi, frame->ebp, frame->esp);
+        frame->esi, frame->ebp, esp);
 
     log_printf("EIP: 0x%x\r\nEFLAGS: 0x%x\r\n", frame->eip, frame->eflags);
 }
@@ -119,10 +127,13 @@ void do_handler_virtual_exception(exception_frame_t * frame) {
 	do_default_handler(frame, "Virtualization Exception.");
 }
 
+
+
+// init 8259
 static void init_pic(void){
-    // ????????????icw4, 8086??
+    // ????????????icw4, 8086 must need PIC_ICW1_ICW4
     outb(PIC0_ICW1, PIC_ICW1_ALWAYS_1 | PIC_ICW1_ICW4);
-     // ??????????0x20
+     // ??????????int_num start 0x20
     outb(PIC0_ICW2, IRQ_PIC_START);
     // ??IRQ2???
     outb(PIC0_ICW3, 1 << 2);
@@ -241,7 +252,7 @@ void irq_enable_global (void){
 void pic_send_eoi(int irq_num){
     irq_num -= IRQ_PIC_START;
     if( irq_num >= 8){
-        outb(PIC1_OCW2, PIC_OCW2_EOI);
+        outb(PIC1_OCW2, PIC_OCW2_EOI);//means end of interrupt
     }
     outb(PIC0_OCW2, PIC_OCW2_EOI);
 }

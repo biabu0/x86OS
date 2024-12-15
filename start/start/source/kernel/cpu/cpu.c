@@ -5,7 +5,7 @@ static segment_desc_t gdt_table[GDT_TABLE_SIZE];
 
 //结构体初始化int selector表示desc在整个gdt_table表的偏移量
 void segment_desc_set(int selector, uint32_t base, uint32_t limit, uint16_t attr){
-
+    //选择子右移3之后用于索引
     segment_desc_t * desc = gdt_table + (selector >> 3);
     if (limit > 0xFFFF){
         attr |= SEG_G; //G标志位设置为1，Limit超过20位大小限制
@@ -27,11 +27,14 @@ void gate_desc_set(gate_desc_t *desc, uint16_t selector, uint32_t offset, uint16
 }
 
 
+
+//重新加载GDT表
 void init_gdt (void){
     for(int i = 0; i < GDT_TABLE_SIZE; i++){
+        //这里左移3是因为在这个函数中对选择子右移了3，这样才能报纸从索引0开始初始化
         segment_desc_set(i << 3, 0, 0, 0);
     }
-    //第0个表项是处理器内部要求保留的
+    //第0个表项是处理器内部要求保留的，选择到0则异常，分别放在第一个，第二个段描述符的位置
     segment_desc_set(KERNEL_SELECTOR_DS, 0, 0xFFFFFFFF, 
         SEG_P_PRESENT | SEG_DPL0 | SEG_S_NORMAL | SEG_TYPE_DATA | SEG_TYPE_RW | SEG_D
     );

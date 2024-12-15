@@ -56,6 +56,7 @@ typedef struct _exception_frame_t{
     // 硬件发生异常的时候，有时会压入错误码，有时不会，这里先不处理
     uint32_t num, error_code;
     uint32_t eip, cs, eflags;
+    uint32_t esp3, ss3;
 }exception_frame_t;
 
 
