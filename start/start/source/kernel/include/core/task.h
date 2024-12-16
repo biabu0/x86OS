@@ -6,7 +6,7 @@
 
 //会使用task_t描述进程（一个程序的运行）
 typedef struct _task_t{
-    uint32_t * stack; //stack top pointer, esp
+    //uint32_t * stack; //stack top pointer, esp
     tss_t tss;
     int tss_sel;
 }task_t;
