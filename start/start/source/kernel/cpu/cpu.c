@@ -26,7 +26,15 @@ void gate_desc_set(gate_desc_t *desc, uint16_t selector, uint32_t offset, uint16
     desc->offset31_16 = (offset >> 16) & 0xFFFF; 
 }
 
-
+int gdt_alloc_desc(){
+    for (int i = 1; i < GDT_TABLE_SIZE; i++){
+        segment_desc_t * desc = gdt_table + i;
+        if(desc->attr == 0){
+            return i * sizeof(segment_desc_t);  //sizeof(segment_desc_t)是8，在初始化的时候，GDT的索引是要对选择子右移3
+        }
+    }
+    return -1;
+}
 
 //重新加载GDT表
 void init_gdt (void){
@@ -50,3 +58,6 @@ void cpu_init (void){
     init_gdt();
 }
 
+void switch_to_tss(int tss_sel){
+    far_jump(tss_sel, 0);//不需要偏移量，tss_sel是GDT表中的选择子
+}
