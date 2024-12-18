@@ -5,7 +5,7 @@
 #include "comm/types.h"
 #include "tools/list.h"
 
-
+#define TASK_TIME_SLICE_DEFAULT 10  //10次定时中断
 #define TASK_NAME_SIZE 32
 //会使用task_t描述进程（一个程序的运行）
 typedef struct _task_t{
@@ -18,6 +18,10 @@ typedef struct _task_t{
         TASK_READY,
         TASK_WAITTING,
     }state;
+    
+    int sleep_ticks;        //延时计数器，每次10ms（定时器中断的值）
+    int time_ticks;     //计数器
+    int slice_ticks;    //这里设置为10，递减的，定时器中断是10ms中断一次，所以,一个进程最多运行时间是100ms
 
     char name[TASK_NAME_SIZE];
 
@@ -32,13 +36,18 @@ typedef struct _task_t{
 int task_init(task_t * task, const char * name, uint32_t entry, uint32_t esp);
 void task_switch_from_to(task_t *from, task_t *to);
 
+void task_time_tick(void);
+
+
 typedef struct _task_manager_t{
     task_t * cur_task;      //当前正在运行的进程
 
     list_t ready_list;
     list_t task_list;
+    list_t sleep_list;
 
     task_t first_task;  //init_main进程的task_t类型定义到这里
+    task_t idle_task;   //空闲进程
 }task_manager_t;
 // 初始化进程管理器
 void task_mananger_init(void);
@@ -54,4 +63,12 @@ int sys_sched_yield(void);
 
 void task_dispatch(void);
 task_t * task_current(void);
+
+// 在睡眠队列中待多少个时钟节拍
+void task_set_sleep(task_t * task, uint32_t ticks);
+// 从睡眠队列中移除
+void task_set_wakeup(task_t * task);
+
+void sys_sleep(uint32_t ms);
+
 #endif

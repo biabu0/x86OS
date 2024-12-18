@@ -2,10 +2,11 @@
 #include "tools/log.h"
 #include "tools/klib.h"
 #include "comm/cpu_instr.h"
+#include "cpu/irq.h"
 
-//µÚÒ»¸ö´®ĞĞ½Ó¿ÚµÄÆğÊ¼µØÖ·
+//ç¬¬ä¸€ä¸ªä¸²è¡Œæ¥å£çš„èµ·å§‹åœ°å€
 #define COM1_PORT     0x3F8
-//³õÊ¼»¯´®ĞĞ½Ó¿Ú£¬Ó²¼şÏà¹ØµÄ³õÊ¼»¯¹¤×÷,ÎŞĞè¹ı¶àÁË½â
+//åˆå§‹åŒ–ä¸²è¡Œæ¥å£ï¼Œç¡¬ä»¶ç›¸å…³çš„åˆå§‹åŒ–å·¥ä½œ,æ— éœ€è¿‡å¤šäº†è§£
 void log_init(void){
     outb(COM1_PORT+1, 0x00);
     outb(COM1_PORT+3, 0x80);
@@ -16,24 +17,28 @@ void log_init(void){
     outb(COM1_PORT+4, 0x0F);
 }
 
-//printf½Ó¿Úº¯Êı    ...¿É±ä²ÎÊı£¬²ÎÊıÊıÁ¿Ã»ÓĞÏŞ,stdarg.h¿â¿ÉÒÔ´¦Àí...
+//printfæ¥å£å‡½æ•°    ...å¯å˜å‚æ•°ï¼Œå‚æ•°æ•°é‡æ²¡æœ‰é™,stdarg.håº“å¯ä»¥å¤„ç†...
 void log_printf(const char * fmt, ...){
     char str_buf[128];
     va_list args;
 
-    kernel_memset(str_buf, '\0', sizeof(str_buf));     //Çå¿Õ»º³åÇø
+    kernel_memset(str_buf, '\0', sizeof(str_buf));     //æ¸…ç©ºç¼“å†²åŒº
     va_start(args, fmt);
     kernel_vsprintf(str_buf, fmt, args);
     va_end(args);
-
+    
+    //è¿›å…¥ä¸´ç•ŒåŒºä¿æŠ¤æ¨¡å¼,è¦æ³¨æ„æ¢å¤ç°åœºï¼Œä½¿ç”¨stateå˜é‡ä¿å­˜è¿›å…¥ä¸´ç•ŒåŒºä¹‹å‰çš„ä¸­æ–­çŠ¶æ€
+    irq_state_t state = irq_enter_protection();
     const char * p = str_buf;
     while(*p != '\0'){
-        while((inb(COM1_PORT + 5) & (1 << 6)) == 0);//¼ì²é´®¿ÚÊÇ·ñÃ¦£¬Ã¦ÔòµÈ´ı
+        while((inb(COM1_PORT + 5) & (1 << 6)) == 0);//æ£€æŸ¥ä¸²å£æ˜¯å¦å¿™ï¼Œå¿™åˆ™ç­‰å¾…
         outb(COM1_PORT, *p++);
     }
 
-    //»»ĞĞ
+    //æ¢è¡Œ
     outb(COM1_PORT, '\r');
     outb(COM1_PORT, '\n');
+    //é€€å‡ºä¸´ç•ŒåŒºä¿æŠ¤æ¨¡å¼ï¼Œæ¢å¤ä¹‹å‰çš„ä¸­æ–­çŠ¶æ€
+    irq_leave_protection(state);
 
 }

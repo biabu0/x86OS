@@ -3,15 +3,19 @@
 #include "cpu/irq.h"
 #include "comm/cpu_instr.h"
 #include "os_cfg.h"
+#include "core/task.h"
 
 //定时器计数
 static uint32_t sys_tick;
 
 
+//定时中断处理函数
 void do_handler_time(exception_frame_t * frame){
     sys_tick++;
     //调用下面的函数通知8259可以继续相应后序的中断
     pic_send_eoi(IRQ0_TIMER);
+    // 必须放到后面
+    task_time_tick();
 }
 
 static void init_pit (void){

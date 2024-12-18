@@ -8,7 +8,7 @@
 #define KERNEL_SELECTOR_DS (2 * 8)          //第二个段描述符
 #define KERNEL_STACK_SIZE (8*1024)
 
-
+#define IDLE_TASK_STACK_SIZE 1024       //空闲进程的栈大小
 #define OS_TICKS_MS             10
 #define OS_VERSION          "1.0.0"
 

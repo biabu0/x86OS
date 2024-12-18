@@ -17,18 +17,19 @@ void kernel_init (boot_info_t *boot_info){
     log_init();
     irq_init();
     time_init();
-    task_mananger_init();  //任务管理相关的初始化
+    task_mananger_init();  //浠诲姟绠＄悊鐩稿叧鐨勫垵濮嬪寲
 }
 
 static uint32_t init_task_stack[1024];
 static task_t init_task;
 
-//涓や釜绋嬪簭搴旇鏈夊悇鑷殑鏍堬紝鍥犱负鍏辩敤鐨勬爤浼氬啿绐侊紝浼氱牬鍧忓彟涓€涓爤鐨勬暟鎹紝鎵€浠ラ渶瑕佷袱涓爤
+//娑撱倓閲滅粙瀣碍鎼存棁顕氶張澶婃倗閼奉亞娈戦弽鍫礉閸ョ姳璐熼崗杈╂暏閻ㄥ嫭鐖ゆ导姘暱缁愪緤绱濇导姘辩壃閸у繐褰熸稉鈧稉顏呯垽閻ㄥ嫭鏆熼幑顕嗙礉閹碘偓娴犮儵娓剁憰浣疯⒈娑擃亝锟�?
 void init_task_entry(void){
     int count = 0;
     for(;;){
         log_printf("int task: %d", count++);
-        sys_sched_yield();
+        sys_sleep(500);
+        //sys_sched_yield();
     }
 }
 
@@ -37,14 +38,18 @@ void init_main(void){
     log_printf("Version: %s %s", OS_VERSION, "diyx86os");
     log_printf("%d %d %x %c",123456, -123, 0x12345, 'a');
 
-    //鏍堟槸浠庨珮鍦板潃濮嬪紑濮嬪線涓嬬敓闀跨殑锛屾墍浠ユ爤椤跺湴鍧€鏄爤鐨勬湯灏撅紝涔熷氨鏄爤浣庡湴鍧€锛屼紶鍏?&stack[1024]
+    //閺嶅牊妲告禒搴ㄧ彯閸︽澘娼冩慨瀣磻婵绶氭稉瀣晸闂€璺ㄦ畱閿涘本澧嶆禒銉︾垽妞よ泛婀撮崸鈧弰顖涚垽閻ㄥ嫭婀亸鎾呯礉娑旂喎姘ㄩ弰顖涚垽娴ｅ骸婀撮崸鈧敍灞肩炊锟�??&stack[1024]
     task_init(&init_task, "init task", (uint32_t)init_task_entry, (uint32_t)&init_task_stack[1024]);
-    //任务管理器中第一个任务初始化操作
+    //浠诲姟绠＄悊鍣ㄤ腑绗竴涓换鍔″垵濮嬪寲鎿嶄綔
     task_first_init();
-
+    irq_enable_global();
     int count = 0;
     for(;;){
-        log_printf("int main: %d", count++);
-        sys_sched_yield();
+        log_printf("first main: %d", count++);
+        //延时一秒钟
+        sys_sleep(1000);
+        //sys_sched_yield();
     }
 }
+
+

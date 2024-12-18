@@ -100,11 +100,11 @@ void do_handler_stack_segment_fault(exception_frame_t * frame) {
 }
 
 void do_handler_general_protection(exception_frame_t * frame) {
-
+    do_default_handler(frame, "General Protection Fault.");
 }
 
 void do_handler_page_fault(exception_frame_t * frame) {
-
+    do_default_handler(frame, "Page Fault.");
 }
 
 void do_handler_fpu_error(exception_frame_t * frame) {
@@ -255,4 +255,17 @@ void pic_send_eoi(int irq_num){
         outb(PIC1_OCW2, PIC_OCW2_EOI);//means end of interrupt
     }
     outb(PIC0_OCW2, PIC_OCW2_EOI);
+}
+
+
+//是否开关中断
+irq_state_t irq_enter_protection(void){
+    //CPU有一个eflags寄存器，用来保存当前CPU的标志寄存器，IF位保存了中断的开关状态
+    //读取EFLAGS
+    irq_state_t state = read_eflags();  //使用内联函数实现
+    irq_disable_global();
+    return state;
+}
+void irq_leave_protection(irq_state_t state){
+    write_eflags(state);
 }
