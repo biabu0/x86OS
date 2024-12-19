@@ -25,6 +25,7 @@ typedef struct _task_t{
 
     char name[TASK_NAME_SIZE];
 
+    list_node_t wait_node;  //用于插入信号量等待队列中
     list_node_t run_node;   //用于插入就绪队列中ready_list
     list_node_t all_node;   //用于插入进程队列中task_list
 

@@ -2,6 +2,9 @@
 #include "os_cfg.h"
 #include "comm/cpu_instr.h"
 #include "cpu/irq.h"
+#include "ipc/mutex.h"
+
+static mutex_t mutex;
 static segment_desc_t gdt_table[GDT_TABLE_SIZE];
 
 //结构体初始化int selector表示desc在整个gdt_table表的偏移量
@@ -28,15 +31,15 @@ void gate_desc_set(gate_desc_t *desc, uint16_t selector, uint32_t offset, uint16
 }
 
 int gdt_alloc_desc(){
-    irq_state_t state = irq_enter_protection();
+    mutex_locK(&mutex);
     for (int i = 1; i < GDT_TABLE_SIZE; i++){
         segment_desc_t * desc = gdt_table + i;
         if(desc->attr == 0){
-            irq_leave_protection(state);
+            mutex_unlock(&mutex);
             return i * sizeof(segment_desc_t);  //sizeof(segment_desc_t)是8，在初始化的时候，GDT的索引是要对选择子右移3
         }
     }
-    irq_leave_protection(state);
+    mutex_unlock(&mutex);
     return -1;
 }
 
@@ -59,6 +62,7 @@ void init_gdt (void){
  
 //cpu初始化函数 
 void cpu_init (void){
+    mutex_init(&mutex);
     init_gdt();
 }
 
