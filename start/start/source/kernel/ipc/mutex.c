@@ -9,32 +9,32 @@ void mutex_init(mutex_t * mutex){
     list_init(&mutex->wait_list);
 }
 
-//ÉÏËø
+//ä¸Šé”
 void mutex_locK(mutex_t * mutex){
     irq_state_t state = irq_enter_protection();
 
     task_t * curr = task_current();
-    if(mutex->locker == 0){ //Ã»ÓĞÉÏËø
+    if(mutex->locker == 0){ //æ²¡æœ‰ä¸Šé”
         mutex->locker++;
         mutex->owner = curr;
-    }else if(mutex->owner == curr){ //ÒÑ¾­ÉÏËø£¬Èç¹ûÊÇ×Ô¼º£¬ÔòÖ±½Ó¼ÓÒ»
+    }else if(mutex->owner == curr){ //å·²ç»ä¸Šé”ï¼Œå¦‚æœæ˜¯è‡ªå·±ï¼Œåˆ™ç›´æ¥åŠ ä¸€
         mutex->locker++;
-    }else{          //Èç¹ûÉÏËøµÄ½ø³Ì²»ÊÇ×Ô¼º£¬Ôò×èÈû×Ô¼º£¬²¢¼ÓÈëµÈ´ı¶ÓÁĞ
+    }else{          //å¦‚æœä¸Šé”çš„è¿›ç¨‹ä¸æ˜¯è‡ªå·±ï¼Œåˆ™é˜»å¡è‡ªå·±ï¼Œå¹¶åŠ å…¥ç­‰å¾…é˜Ÿåˆ—
         task_set_block(curr);
         list_insert_last(&mutex->wait_list, &curr->wait_node);
-        task_dispatch();//µ±Ç°ÈÎÎñÒÑ¾­´Ó¾ÍĞ÷¶ÓÁĞÖĞÒÆ³ı£¬ÇĞ»»µ½ÏÂÒ»¸ö¶ÓÁĞ
+        task_dispatch();//å½“å‰ä»»åŠ¡å·²ç»ä»å°±ç»ªé˜Ÿåˆ—ä¸­ç§»é™¤ï¼Œåˆ‡æ¢åˆ°ä¸‹ä¸€ä¸ªé˜Ÿåˆ—
     }
     irq_leave_protection(state);
 }
-//½âËø
+//è§£é”
 void mutex_unlock(mutex_t * mutex){
     irq_state_t state = irq_enter_protection();
     task_t * curr = task_current();
     if(mutex->owner == curr){
         mutex->locker--;
-        if(mutex->locker == 0){     //Ö§³ÖÒ»¸ö½ø³Ì¶à´ÎÉÏËø
-            mutex->owner = (task_t *)0;     //½âËø
-            if(list_count(&mutex->wait_list)){      //»¥³âËøµÈ´ı¶ÓÁĞÓĞ½ø³Ì£¬Ôò½«Ëø¸øµ½¸Ã½ø³Ì
+        if(mutex->locker == 0){     //æ”¯æŒä¸€ä¸ªè¿›ç¨‹å¤šæ¬¡ä¸Šé”
+            mutex->owner = (task_t *)0;     //è§£é”
+            if(list_count(&mutex->wait_list)){      //äº’æ–¥é”ç­‰å¾…é˜Ÿåˆ—æœ‰è¿›ç¨‹ï¼Œåˆ™å°†é”ç»™åˆ°è¯¥è¿›ç¨‹
 
                 list_node_t * node = list_remove_first(&mutex->wait_list);
                 task_t * task = list_node_parent(node, task_t, wait_node);

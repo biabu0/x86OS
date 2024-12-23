@@ -10,22 +10,24 @@
 #include "comm/cpu_instr.h"
 #include "tools/list.h"
 #include "ipc/sem.h"
+#include "core/memory.h"
 
 void kernel_init (boot_info_t *boot_info){
     ASSERT(boot_info->ram_region_count != 0);
   
     cpu_init();
+    memory_init(boot_info);     //对整个内存初始化
     log_init();
     irq_init();
     time_init();
-    task_mananger_init();  //娴犺濮熺粻锛勬倞閻╃ǹ鍙ч惃鍕灥婵瀵�
+    task_mananger_init();  //濞寸姾顕ф慨鐔虹不閿涘嫭鍊為柣鈺兦归崣褔鎯冮崟顐㈢仴濠殿喖顑呯€碉拷
 }
 
 static uint32_t init_task_stack[1024];
 static task_t init_task;
 static sem_t sem;
 
-//濞戞挶鍊撻柌婊呯矙鐎ｎ亞纰嶉幖瀛樻椤曟岸寮垫径濠冨€楅柤濂変簽濞堟垿寮介崼顒傜闁搞儳濮崇拹鐔煎礂鏉堚晜鏆忛柣銊ュ閻栥倖瀵煎顒€鏆辩紒鎰筏缁辨繃瀵煎杈╁闁秆冪箰瑜扮喐绋夐埀顒佺▔椤忓懐鍨介柣銊ュ閺嗙喖骞戦鍡欑闁圭鍋撳ù鐘劦濞撳墎鎲版担鐤拡濞戞搩浜濋敓锟�?
+//婵炴垶鎸堕崐鎾绘煂濠婂懐鐭欓悗锝庝簽绾板秹骞栫€涙ɑ顥嗘い鏇熷哺瀵灚寰勬繝鍐ㄢ偓妤呮煠婵傚绨芥繛鍫熷灴瀵粙宕奸鍌滎槷闂佹悶鍎虫慨宕囨嫻閻旂厧绀傞弶鍫氭櫆閺嗗繘鏌ｉ妸銉ヮ仾闁绘牓鍊栫€电厧顫濋鈧弳杈╃磼閹邦亞绛忕紒杈ㄧ箖鐎电厧顫濇潏鈺侇棃闂佺鍐鐟滄壆鍠愮粙澶愬焵椤掍胶鈻旀い蹇撴噽閸ㄤ粙鏌ｉ妸銉ヮ仾闁哄棛鍠栭獮鎴︻敋閸℃瑧顦梺鍦暯閸嬫挸霉閻橆喖鍔︽繛鎾冲閹茬増鎷呴悿顖楁嫛婵炴垶鎼╂禍婵嬫晸閿燂拷?
 void init_task_entry(void){
     int count = 0;
     for(;;){
@@ -43,18 +45,19 @@ void init_main(void){
     log_printf("Version: %s %s", OS_VERSION, "diyx86os");
     log_printf("%d %d %x %c",123456, -123, 0x12345, 'a');
 
-    //闁哄秴鐗婂Σ鍛婄鎼淬劎褰柛锔芥緲濞煎啯鎱ㄧ€ｎ亞纾诲┑顔碱儏缁舵碍绋夌€ｎ剚鏅搁梻鈧捄銊︾暠闁挎稑鏈晶宥嗙閵夛妇鍨藉銈堟硾濠€鎾锤閳ь剟寮伴娑氬灲闁汇劌瀚﹢顖滀焊閹惧懐绀夊☉鏃傚枎濮樸劑寮伴娑氬灲濞达絽楠稿﹢鎾锤閳ь剟鏁嶇仦鑲╃倞閿燂拷??&stack[1024]
+    //闂佸搫绉撮悧濠偽ｉ崨濠勵浄閹兼番鍔庤ぐ顖炴煕閿旇姤绶叉繛鐓庡暞閹便劎鈧綆浜炵壕璇测攽椤旂⒈鍎忕紒鑸电缁嬪鈧綆鍓氶弲鎼佹⒒閳ь剛鎹勯妸锔炬殸闂佹寧绋戦張顒佹櫠瀹ュ棛顩烽柕澶涘閸ㄨ棄顪冮妶鍫熺【婵犫偓閹绢喖閿ら柍褜鍓熷浼搭敍濞戞艾鐏查梺姹囧妼鐎氼厼锕㈤婊€鐒婇柟鎯ф噽缁€澶娾槈閺冨倸鏋庢慨妯稿姂瀵即顢涘☉姘伈婵炶揪绲芥绋匡耿閹绢喖閿ら柍褜鍓熼弫宥囦沪閼测晝鍊為柨鐕傛嫹??&stack[1024]
     task_init(&init_task, "init task", (uint32_t)init_task_entry, (uint32_t)&init_task_stack[1024]);
-    //娴犺濮熺粻锛勬倞閸ｃ劋鑵戠粭顑跨娑擃亙鎹㈤崝鈥冲灥婵瀵查幙宥勭稊
+    //濞寸姾顕ф慨鐔虹不閿涘嫭鍊為柛锝冨妺閼垫垹绮璺伇濞戞搩浜欓幑銏ゅ礉閳ュ啿鐏ュ┑顔碱儏鐎垫煡骞欏鍕▕
     task_first_init();
-    //信号量初始化，当前没有信号在里面 
+    //淇″彿閲忓垵濮嬪寲锛屽綋鍓嶆病鏈変俊鍙峰湪閲岄潰 
     sem_init(&sem, 0);
     irq_enable_global();
     int count = 0;
     for(;;){
         log_printf("first main: %d", count++);
         //sem_notify(&sem);
-        //寤舵椂涓€绉掗挓
+        //瀵よ埖妞傛稉鈧粔鎺楁寭
+
         //sys_sleep(1000);
         //sys_sched_yield();
     }
