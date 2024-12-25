@@ -6,6 +6,10 @@
 #include "ipc/mutex.h"
 #include "comm/boot_info.h"
 
+#define MEM_EXT_START (1024*1024)
+#define MEM_PAGE_SIZE 4096
+
+#define MEM_EBDA_START  0x80000
 //对地址进行分配，从整个内存中取地址，找到一个空闲的内存块的地址
 //该功能可能被很多进程或者任务使用，临界资源
 typedef struct _addr_alloc_t {
