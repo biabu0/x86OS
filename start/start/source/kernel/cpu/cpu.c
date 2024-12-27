@@ -42,6 +42,12 @@ int gdt_alloc_desc(){
     mutex_unlock(&mutex);
     return -1;
 }
+void gdt_free_sel(int tss_sel){
+    mutex_locK(&mutex);
+    gdt_table[tss_sel/sizeof(segment_desc_t)].attr = 0;
+    mutex_unlock(&mutex);
+}
+
 
 //重新加载GDT表
 void init_gdt (void){
@@ -69,3 +75,4 @@ void cpu_init (void){
 void switch_to_tss(int tss_sel){
     far_jump(tss_sel, 0);//不需要偏移量，tss_sel是GDT表中的选择子
 }
+

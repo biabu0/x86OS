@@ -29,6 +29,13 @@ static int tss_init(task_t * task, uint32_t entry, uint32_t esp){
     task->tss.eflags = EFLAGS_DEFAULT | EFLAGS_IF;      //IF为1，我们不希望从TSS恢复后所有的中断不能响应
     //其他通用寄存器，设置为0，里面的值由程序自己设置
     //cr3，后序课程使用
+    uint32_t page_dir = memory_create_uvm();
+    if(page_dir == 0){
+        //页表创建失败，释放描述符
+        gdt_free_sel(tss_sel);
+        return -1;
+    }
+    task->tss.cr3 = page_dir;//将页表设置到cr3
     task->tss_sel = tss_sel;        //将该任务的选择子保存起来，切换任务时，需要用到
     return 0;
 }
