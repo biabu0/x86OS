@@ -7,6 +7,9 @@
 
 #define TASK_TIME_SLICE_DEFAULT 10  //10次定时中断
 #define TASK_NAME_SIZE 32
+
+#define TASK_FLAGS_SYSTEM (1 << 0)
+
 //会使用task_t描述进程（一个程序的运行）
 typedef struct _task_t{
     //uint32_t * stack; //stack top pointer, esp
@@ -34,7 +37,7 @@ typedef struct _task_t{
 }task_t;
 
 // 传入程序的入口地址， 栈的指针
-int task_init(task_t * task, const char * name, uint32_t entry, uint32_t esp);
+int task_init(task_t * task, const char * name, int flag, uint32_t entry, uint32_t esp);
 void task_switch_from_to(task_t *from, task_t *to);
 
 void task_time_tick(void);
@@ -49,6 +52,9 @@ typedef struct _task_manager_t{
 
     task_t first_task;  //init_main进程的task_t类型定义到这里
     task_t idle_task;   //空闲进程
+
+    int app_code_sel;
+    int app_data_sel;
 }task_manager_t;
 // 初始化进程管理器
 void task_mananger_init(void);

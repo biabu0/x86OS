@@ -10,6 +10,7 @@
 #define PTE_W       (1 << 1)
 #define PDE_W       (1 << 1)
 #define PDE_U       (1 << 2)    //用户可以访问
+#define PTE_U       (1 << 2)    //用户可以访问
 
 //page directory entry 页目录表
 typedef union _pde_t{

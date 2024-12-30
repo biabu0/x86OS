@@ -153,3 +153,49 @@ void memory_init(boot_info_t * boot_info){
     create_kernel_table();      //创建内核页表
     mmu_set_page_dir((uint32_t)kernel_page_dir);    //将页目录表地址赋值给CR3寄存器，开启分页机制
 }
+int memory_alloc_for_page_dir(uint32_t page_dir, uint32_t vaddr, uint32_t size, int perm){
+    uint32_t curr_vaddr = vaddr;
+    int page_count = up2(size, MEM_PAGE_SIZE) / MEM_PAGE_SIZE;
+    
+    for(int i = 0; i < page_count; i++){
+        uint32_t paddr = addr_alloc_page(&paddr_alloc, 1);
+        if(paddr == 0){
+            log_printf("mem alloc failed . ne memory");
+            return -1;
+        }
+
+        int err = mem_create_map((pde_t *)page_dir, curr_vaddr, paddr, 1, perm);
+        if(err < 0){
+            log_printf("create memory failed. err = %d", err);
+            return -1;
+        }
+
+        curr_vaddr += MEM_PAGE_SIZE;
+    }
+    return 0;
+}
+int memory_alloc_page_for(uint32_t addr, uint32_t size, int perm){
+    //该函数会指定具体给那个页表分配空技能
+    return memory_alloc_for_page_dir(task_current()->tss.cr3, addr, size, perm);
+}
+
+uint32_t memory_alloc_page(void){
+    //返回的物理地址，但之前在create_kernel_table中已经将1M以上的地址与线性地址映射了
+    uint32_t addr = addr_alloc_page(&paddr_alloc, 1);
+    return addr;
+}
+static pde_t *curr_page_dir(void){
+    return (pde_t *)(task_current()->tss.cr3);
+}
+void memory_free_page(uint32_t addr){
+    //如果分配的地址是0x80000000以内，则说明使用的是memory_alloc_page分配的地址，不然是memory_alloc_page_for分配的
+    //对应的是0x80000000以上的虚拟地址
+    if(addr < MEMORY_TASK_START){
+        addr_free_page(&paddr_alloc, addr, 1);//物理地址
+    }else{
+        pte_t * pte = find_pte(curr_page_dir(), addr, 0);
+        ASSERT((pte == (pte_t *)0) && pte->present);
+        addr_free_page(&paddr_alloc, pte_paddr(pte), 1);
+        pte->v = 0;//解除映射关系
+    }
+}

@@ -5,9 +5,9 @@ project(kernel LANGUAGES C)
 set(CMAKE_EXE_LINKER_FLAGS "-m elf_i386  -T ${PROJECT_SOURCE_DIR}/kernel.lds")
 set(CMAKE_C_LINK_EXECUTABLE "${LINKER_TOOL} <OBJECTS> ${CMAKE_EXE_LINKER_FLAGS} -o ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.elf")
 
-# 将所有的汇编、C文件加入工程
+# 将所有的汇编、C文、.S文件加入工程
 # 注意保证start.asm在最前头，这样对应的程序会放在bin文件开头，从而在加载到0x7c00时能在开头处
-file(GLOB_RECURSE C_LIST "*.c" "*.h")
+file(GLOB_RECURSE C_LIST "*.c" "*.h" "*.S")
 add_executable(${PROJECT_NAME} init/start.S ${C_LIST})
 
 # bin文件生成，写入到image目录下

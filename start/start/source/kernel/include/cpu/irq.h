@@ -50,13 +50,21 @@
 #define IRQ_PIC_START           0X20
 
 
+#define ERR_PAGE_P  (1 << 0)
+#define ERR_PAGE_RW  (1 << 1)
+#define ERR_PAGE_US  (1 << 2)
+
+#define ERR_EXT (1 << 0)
+#define ERR_IDT (1 << 1)
+
+
 typedef struct _exception_frame_t{
     uint32_t gs, fs, es, ds;
     uint32_t edi, esi, ebp, esp, ebx, edx, ecx, eax;
     // 硬件发生异常的时候，有时会压入错误码，有时不会，这里先不处理
     uint32_t num, error_code;
     uint32_t eip, cs, eflags;
-    uint32_t esp3, ss3;
+    uint32_t esp3, ss3;//将特权级转换时压入的另一个栈的栈顶地址和地址
 }exception_frame_t;
 
 
