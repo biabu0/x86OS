@@ -21,6 +21,7 @@ typedef struct _task_t{
         TASK_READY,
         TASK_WAITTING,
     }state;
+    pid_t pid;
     
     int sleep_ticks;        //延时计数器，每次10ms（定时器中断的值）
     int time_ticks;     //计数器
@@ -77,5 +78,6 @@ void task_set_sleep(task_t * task, uint32_t ticks);
 void task_set_wakeup(task_t * task);
 
 void sys_sleep(uint32_t ms);
+int sys_getpid(void);
 
 #endif

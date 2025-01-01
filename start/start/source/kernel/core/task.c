@@ -7,9 +7,14 @@
 #include "cpu/irq.h"
 #include "core/memory.h"
 #include "cpu/mmu.h"
+#include "comm/types.h"
+#include "ipc/mutex.h"
 static uint32_t idle_task_stack[IDLE_TASK_STACK_SIZE];
 // 整个系统中只需要一个任务管理器，定义为全局变量
 static task_manager_t task_manager;
+
+static mutex_t pid_mutex; 
+
 static int tss_init(task_t * task, int flag, uint32_t entry, uint32_t esp){
     int tss_sel = gdt_alloc_desc();
     if(tss_sel < 0){
@@ -62,6 +67,15 @@ tss_init_failed:
 }
 
 
+//分配pid值
+static int allocate_pid(void){
+    static int next_pid = 0;
+    mutex_locK(&pid_mutex);
+    next_pid++;
+    mutex_unlock(&pid_mutex);
+    return next_pid;
+}
+
 int task_init(task_t * task, const char * name, int flag, uint32_t entry, uint32_t esp){
     ASSERT(task != (task_t *)0);        //初始化，不能0
     tss_init(task, flag, entry, esp); //初始化了tss和tss_sel
@@ -77,6 +91,9 @@ int task_init(task_t * task, const char * name, int flag, uint32_t entry, uint32
     list_node_init(&task->wait_node);
 
     irq_state_t state = irq_enter_protection();
+    //直接将task结构地址作为pid，是唯一的
+    task->pid = allocate_pid();
+
     task_set_ready(task);
     list_insert_last(&task_manager.task_list, &task->all_node);
     irq_leave_protection(state);
@@ -279,4 +296,9 @@ void sys_sleep(uint32_t ms){
     task_dispatch();
 
     irq_leave_protection(state);
+}
+
+int sys_getpid(void){
+    task_t *task = task_current();
+    return task->pid;
 }
