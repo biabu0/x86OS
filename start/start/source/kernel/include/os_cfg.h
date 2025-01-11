@@ -13,4 +13,7 @@
 #define OS_TICKS_MS             10
 #define OS_VERSION          "1.0.0"
 
+//整个系统中task的数量
+#define TASK_NR             128
+
 #endif

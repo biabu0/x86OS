@@ -18,7 +18,6 @@ void kernel_init (boot_info_t *boot_info){
     cpu_init();
     log_init();
     memory_init(boot_info);     //对整个内存初始化
-    
     irq_init();
     time_init();
     task_mananger_init();  //濞寸姾顕ф慨鐔虹不閿涘嫭鍊為柣鈺兦归崣褔鎯冮崟顐㈢仴濠殿喖顑呯€碉�?
@@ -45,6 +44,7 @@ void move_to_first_task(void){
 }
 
 void init_main(void){
+
     log_printf("Kernel is running.....");
     log_printf("Version: %s %s", OS_VERSION, "diyx86os");
     log_printf("%d %d %x %c",123456, -123, 0x12345, 'a');

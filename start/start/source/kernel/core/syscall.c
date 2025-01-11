@@ -12,6 +12,7 @@ static const syscall_handler_t sys_table[] = {
     [SYS_sleep] = (syscall_handler_t)sys_sleep,
     [SYS_getpid] = (syscall_handler_t)sys_getpid,
     [SYS_printmsg] = (syscall_handler_t)sys_print_msg,
+    [SYS_fork] = (syscall_handler_t)sys_fork,
 };
 void do_handler_syscall(syscall_frame_t * frame){
     if(frame->function_id < sizeof(sys_table)/sizeof(sys_table[0])){

@@ -118,7 +118,7 @@ void create_kernel_table(void){
     }
 }
 
-//创建用户的页表
+//创建用户的第一级页表，并进行初始化
 uint32_t memory_create_uvm(void){
     //分配一页内存
     pde_t * page_dir = (pde_t *)addr_alloc_page(&paddr_alloc, 1);
@@ -127,8 +127,8 @@ uint32_t memory_create_uvm(void){
     }
     //清空页表
     kernel_memset((void*)page_dir, 0, MEM_PAGE_SIZE);
-    //将0x80000000以下的虚拟内存映射
-    uint32_t user_pde_start = pde_index(MEMORY_TASK_START);
+    //将0x80000000以下的虚拟内存映射，这些是操作系统的内容，个进程都是一样的，以后只需要映射以上的即可
+    uint32_t user_pde_start = pde_index(MEMORY_TASK_BASE);
     for(int i = 0; i < user_pde_start; i++){
         page_dir[i].v = kernel_page_dir[i].v;
     }
@@ -198,4 +198,73 @@ void memory_free_page(uint32_t addr){
         addr_free_page(&paddr_alloc, pte_paddr(pte), 1);
         pte->v = 0;//解除映射关系
     }
+}
+
+void memory_destroy_uvm(uint32_t page_dir){
+    uint32_t user_pde_start = pde_index(MEMORY_TASK_BASE);
+    pde_t * pde = (pde_t *)page_dir + user_pde_start;
+    for(int i = user_pde_start; i < PDE_CNT; i++, pde++){
+        //如果该一级页表的索引不存在，则跳过，即无需拷贝
+        if(!pde->present){
+            continue;
+        }
+        //如果存在，则需要进行复制，取出物理页地址
+        pte_t * pte = (pte_t *)pde_paddr(pde);
+        for(int j = 0; j < PTE_CNT; j++, pte++){
+            if(!pte->present){
+                continue;
+            }
+            addr_free_page(&paddr_alloc, pte_paddr(pte), 1);
+        }
+
+        addr_free_page(&paddr_alloc, (uint32_t)pde_paddr(pde), 1);
+    }
+
+    addr_free_page(&paddr_alloc, (uint32_t)page_dir, 1);
+}
+
+//给子进程复制父进程页表
+uint32_t memory_copy_uvm(uint32_t page_dir){
+    //创建一个一级页表
+    uint32_t to_page_dir = memory_create_uvm();
+    //创建失败
+    if(to_page_dir == 0){
+        goto copy_uvm_failed;
+    }
+    //0x80000000对应的一级页表的索引
+    uint32_t user_pde_start = pde_index(MEMORY_TASK_BASE);
+    pde_t * pde = (pde_t *)page_dir + user_pde_start;
+    for(int i = user_pde_start; i < PDE_CNT; i++, pde++){
+        //如果该一级页表的索引不存在，则跳过，即无需拷贝
+        if(!pde->present){
+            continue;
+        }
+        //如果存在，则需要进行复制，取出物理页地址
+        pte_t * pte = (pte_t *)pde_paddr(pde);
+        for(int j = 0; j < PTE_CNT; j++, pte++){
+            if(!pte->present){
+                continue;
+            }
+            //分配的物理页的地址
+            uint32_t page = addr_alloc_page(&paddr_alloc, 1);
+            if(page == 0){
+                goto copy_uvm_failed;
+            }
+            //线性地址分为三部分，一级页表、二级页表和偏移，将父进程的映射关系拷贝到子进程
+            uint32_t vaddr = (i << 22) | (j << 12);
+            int err = mem_create_map((pde_t *) to_page_dir, vaddr, page, 1, get_pte_perm(pte));
+            if(err < 0){
+                goto copy_uvm_failed;
+            }
+            //将父进程的物理页复制到子进程
+            kernel_memcpy((void*)page, (void *)vaddr, MEM_PAGE_SIZE);
+        }
+
+    }
+    return to_page_dir;
+copy_uvm_failed:
+    if(to_page_dir){
+        memory_destroy_uvm(to_page_dir);
+    }
+    return -1;
 }

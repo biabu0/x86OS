@@ -11,7 +11,7 @@
 #define MEM_PAGE_SIZE 4096
 
 #define MEM_EBDA_START  0x80000
-
+#define MEMORY_TASK_BASE            (0x80000000)
 #define MEMORY_TASK_START   (127 * 1024 * 1024)
 //对地址进行分配，从整个内存中取地址，找到一个空闲的内存块的地址
 //该功能可能被很多进程或者任务使用，临界资源
@@ -38,4 +38,9 @@ int memory_alloc_page_for(uint32_t addr, uint32_t size, int perm);
 
 uint32_t memory_alloc_page(void);
 void memory_free_page(uint32_t addr);
+
+
+void memory_destroy_uvm(uint32_t page_dir);
+uint32_t memory_copy_uvm(uint32_t page_dir);
+
 #endif

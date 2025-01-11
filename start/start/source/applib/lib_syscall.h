@@ -59,6 +59,13 @@ static inline void print_msg(const char * fmt, int arg){
     args.arg1 = arg;
     //使用调用门的设置，来调用操作系统内部的参数
     sys_call(&args);
-
 }
+static inline int fork(void){
+    syscall_srgs_t args;
+    args.id = SYS_fork;
+    //使用调用门的设置，来调用操作系统内部的参数
+    sys_call(&args);
+}
+
+
 #endif
