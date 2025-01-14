@@ -189,3 +189,24 @@ void panic(const char * file, int line, const char * func, const char * cond){
     }
 }
 
+int string_count(char ** start){
+    int count = 0;
+    if(start){
+        while(*start ++){
+            count ++;
+        }
+    }
+    return count;
+}
+char * get_file_name(const char * name){
+    char * s = name;
+    while(*s != '\0'){
+        s++;
+    }
+    while((*s != '/') && (*s != '\\') && (s >= name)){
+        s--;
+    }
+    return s+1;
+}
+
+

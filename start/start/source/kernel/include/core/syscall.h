@@ -6,6 +6,10 @@
 #define SYS_getpid      1
 #define SYS_printmsg    2
 #define SYS_fork        3
+#define SYS_execve      4
+#define SYS_yield       5
+
+
 #define SYSCALL_PARAM_COUNT 5
 
 typedef struct _syscall_frame_t{
@@ -19,5 +23,6 @@ typedef struct _syscall_frame_t{
 
 //涉及寄存器的操作使用汇编实现
 void exception_handler_syscall(void);
+
 
 #endif

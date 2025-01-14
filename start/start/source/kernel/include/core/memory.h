@@ -13,6 +13,13 @@
 #define MEM_EBDA_START  0x80000
 #define MEMORY_TASK_BASE            (0x80000000)
 #define MEMORY_TASK_START   (127 * 1024 * 1024)
+
+#define MEM_TASK_STACK_TOP 0xE0000000
+#define MEM_TASK_STACK_SIZE (MEM_PAGE_SIZE * 500)
+
+#define MEM_TASK_ARG_SIZE       (MEM_PAGE_SIZE * 4)
+
+
 //对地址进行分配，从整个内存中取地址，找到一个空闲的内存块的地址
 //该功能可能被很多进程或者任务使用，临界资源
 typedef struct _addr_alloc_t {
@@ -39,8 +46,11 @@ int memory_alloc_page_for(uint32_t addr, uint32_t size, int perm);
 uint32_t memory_alloc_page(void);
 void memory_free_page(uint32_t addr);
 
-
+int memory_alloc_for_page_dir(uint32_t page_dir, uint32_t vaddr, uint32_t size, int perm);
 void memory_destroy_uvm(uint32_t page_dir);
 uint32_t memory_copy_uvm(uint32_t page_dir);
+//获取虚拟地址在该页表中对应的物理地址
+uint32_t memory_get_paddr(uint32_t page_dir, uint32_t vaddr);
 
+int memory_copy_uvm_data(uint32_t to, uint32_t page_dir, uint32_t from, uint32_t size);
 #endif

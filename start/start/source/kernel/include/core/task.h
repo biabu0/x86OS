@@ -10,6 +10,13 @@
 
 #define TASK_FLAGS_SYSTEM (1 << 0)
 
+
+typedef struct _task_args_t{
+    uint32_t ret_addr;
+    uint32_t argc;
+    char ** argv;
+}task_args_t;
+
 //会使用task_t描述进程（一个程序的运行）
 typedef struct _task_t{
     //uint32_t * stack; //stack top pointer, esp
@@ -81,5 +88,6 @@ void task_set_wakeup(task_t * task);
 void sys_sleep(uint32_t ms);
 int sys_getpid(void);
 int sys_fork(void);
+int sys_execve(char * pathname, char * argv[], char * envp[]);
 
 #endif

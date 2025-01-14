@@ -68,4 +68,23 @@ static inline int fork(void){
 }
 
 
+static inline int execve(const char * pathname, char * const argv[], char * const envp[]){
+    syscall_srgs_t args;
+    args.id = SYS_execve;
+    args.arg0 = (int)pathname;
+    args.arg1 = (int)argv;
+    args.arg2 = (int)envp;
+    //使用调用门的设置，来调用操作系统内部的参数
+    return sys_call(&args);
+}
+
+
+static inline int yield(void){
+    syscall_srgs_t args;
+    args.id = SYS_yield;
+    //使用调用门的设置，来调用操作系统内部的参数
+    sys_call(&args);
+
+}
+
 #endif

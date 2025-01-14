@@ -18,10 +18,10 @@ typedef uint32_t Elf32_Word;
 #define EI_NIDENT       16
 #define ELF_MAGIC       0x7F
 
-#define ET_EXEC         2   // å¯æ‰§è¡Œæ–‡ä»¶
-#define ET_386          3   // 80386å¤„ç†å™¨
+#define ET_EXEC         2   // å¯æ‰§è¡Œæ–‡ä»?
+#define ET_386          3   // 80386å¤„ç†å™?
 
-#define PT_LOAD         1   // å¯åŠ è½½ç±»å‹
+#define PT_LOAD         1   // å¯åŠ è½½ç±»å?
 
 typedef struct {
     char e_ident[EI_NIDENT];
@@ -29,12 +29,12 @@ typedef struct {
     Elf32_Half e_machine;
     Elf32_Word e_version;
     Elf32_Addr e_entry;
-    Elf32_Off e_phoff;
+    Elf32_Off e_phoff;          //³ÌĞòÍ·±íµÄÆ«ÒÆ
     Elf32_Off e_shoff;
     Elf32_Word e_flags;
     Elf32_Half e_ehsize;
     Elf32_Half e_phentsize;
-    Elf32_Half e_phnum;
+    Elf32_Half e_phnum;         //³ÌĞòÍ·±íµÄÏîÊı
     Elf32_Half e_shentsize;
     Elf32_Half e_shnum;
     Elf32_Half e_shstrndx;

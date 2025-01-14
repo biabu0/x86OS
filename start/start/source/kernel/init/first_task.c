@@ -9,6 +9,9 @@ int first_task_main(void){
         print_msg("error: fork failed.%d", pid);
     }else if(pid == 0){
         print_msg("child : %d", pid);
+        char * argv[] = {"arg0", "arg1", "arg2", "arg3"};
+        //目前没有文件系统，放一个假的
+        execve("/shell.elf", argv, (char **)0);
     }else{
         print_msg("parent pid: %d", pid);
     }

@@ -268,3 +268,37 @@ copy_uvm_failed:
     }
     return -1;
 }
+
+uint32_t memory_get_paddr(uint32_t page_dir, uint32_t vaddr){
+    pte_t * pte = find_pte((pde_t *)page_dir, vaddr, 0);
+    if(!pte){
+        return 0;
+    }
+    //vaddr 0x1024 & 0xFFF = 0x024偏移量
+    //1000->0xFFF
+    return pte_paddr(pte) + (vaddr & (MEM_PAGE_SIZE - 1));
+}
+
+int memory_copy_uvm_data(uint32_t to, uint32_t page_dir, uint32_t from, uint32_t size){
+    while(size > 0){
+        //物理地址与虚拟地址是对应的，from是当前已经启用的页表，看到的虚拟地址是连续的，而page_dir还没有启用，
+        //通过物理地址进行copy（物理地址会和虚拟第一一对应，是一样的）
+        uint32_t to_paddr = memory_get_paddr(page_dir, to);
+        if(to_paddr == 0){
+            return -1;
+        }
+        //to对应的物理地址可能是不连续的需要逐页copy
+        uint32_t offset_in_page = to_paddr & (MEM_PAGE_SIZE -1);
+        uint32_t curr_size = MEM_PAGE_SIZE - offset_in_page;
+        if(curr_size > size){
+            curr_size = size;
+        }
+        kernel_memcpy((void *)to_paddr, (void *)from, curr_size);
+
+        size -= curr_size;
+        to += curr_size;
+        from += curr_size;
+    }
+
+    return 0;
+}

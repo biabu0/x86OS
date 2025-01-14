@@ -10,6 +10,8 @@
 #include "comm/types.h"
 #include "ipc/mutex.h"
 #include "core/syscall.h"
+#include "comm/elf.h"
+#include "fs/fs.h"
 static uint32_t idle_task_stack[IDLE_TASK_STACK_SIZE];
 // 整个系统中只需要一个任务管理器，定义为全局变量
 static task_manager_t task_manager;
@@ -101,22 +103,17 @@ int task_init(task_t * task, const char * name, int flag, uint32_t entry, uint32
     //初始的时候父进程为0
     task->parent = (task_t *)0;
 
-    task_set_ready(task);
+
     list_insert_last(&task_manager.task_list, &task->all_node);
     irq_leave_protection(state);
 
-    // uint32_t * pesp = (uint32_t *)esp;
-    // if(pesp){
-    //     // first run to_task, need init stack, else error when pop stack
-    //     *(--pesp) = entry;
-    //     *(--pesp) = 0;
-    //     *(--pesp) = 0;
-    //     *(--pesp) = 0;
-    //     *(--pesp) = 0;
-    //     task->stack = (uint32_t *)pesp;
-    // }
-
     return 0;
+}
+
+void task_start(task_t * task){
+    irq_state_t state = irq_enter_protection();
+    task_set_ready(task);
+    irq_leave_protection(state);
 }
 
 void task_uninit (task_t * task){
@@ -168,6 +165,9 @@ void task_first_init(void){
     memory_alloc_page_for(first_start, alloc_size, PTE_P | PTE_W | PTE_U);
     //从物理地址开始copy到0x80000000，拷贝copy_size大小（实际大小）
     kernel_memcpy((void *)first_start, s_first_task, copy_size);
+
+    task_start(&task_manager.first_task);
+
 }
 // 获取任务管理器中的第一个进程
 task_t * task_first_task(void){
@@ -208,6 +208,7 @@ void task_mananger_init(void){
         (uint32_t)idle_task_entry, 
         (uint32_t)idle_task_stack + IDLE_TASK_STACK_SIZE
     );
+    task_start(&task_manager.idle_task);
 }
 
 void task_set_ready(task_t *task){
@@ -389,6 +390,8 @@ int sys_fork(void){
     if((child_task->tss.cr3 = memory_copy_uvm(parent_task->tss.cr3)) < 0){
         goto fork_failed;
     }
+    task_start(child_task);
+    
     return child_task->pid;
     //创建子进程失败
 fork_failed:
@@ -400,3 +403,189 @@ fork_failed:
 }
 
 
+static int load_phdr(int file, Elf32_Phdr * phdr, uint32_t page_dir){
+    //建立存储映射关系，将phdr映射进去，没有区分text还是data，全部设置为可写的
+    int err = memory_alloc_for_page_dir(page_dir, phdr->p_vaddr, phdr->p_memsz, PTE_P | PTE_W | PTE_U);
+    if(err < 0){
+        log_printf("no memory");
+        return -1;
+    }
+    //p_offset是程序头指向的段的偏移，p_vaddr是虚拟地址，可以读取程序数据了
+    if(sys_lseek(file, phdr->p_offset, 0) < 0){
+        log_printf("read file failed.");
+        return -1;
+    }
+    //读取程序头指向的段的内容
+    uint32_t vaddr = phdr->p_vaddr;
+    uint32_t size = phdr->p_filesz;
+    //目前的页表page_dir还没有启用，不能使用memory_copy，需要获取没有启用页表的物理地址，逐页拷贝
+    while(size > 0){
+        int curr_size = (size > MEM_PAGE_SIZE) ? MEM_PAGE_SIZE : size;
+        //获取p_vaddr在page_dir中对应的物理地址
+        uint32_t paddr = memory_get_paddr(page_dir, vaddr);
+        //物理地址有对应的相同的虚拟地址
+        if(sys_read(file, (char*)paddr, curr_size) < curr_size){
+            log_printf("read file failed.");
+            return -1;
+        }
+        size -= curr_size;
+        vaddr += curr_size;
+    }
+    return 0;
+}
+
+static uint32_t load_elf_file(task_t *task, const char * pathname, uint32_t page_dir){
+    Elf32_Ehdr elf_hdr;         //ELF头的结构，包含了ELF文件的信息
+    Elf32_Phdr elf_phdr;        //程序头表项的内容
+    int file = sys_open(pathname, 0);
+    if(file < 0){
+        log_printf("Open failed. %s", pathname);
+        goto load_failed;
+    }
+
+    //将ELF头读入到elf_hdr中，保存了ELF文件的各种信息
+    int cnt = sys_read(file, (char*)&elf_hdr, sizeof(elf_hdr));
+    if(cnt < sizeof(Elf32_Ehdr)){
+        log_printf("elf hdr too small. size = %d", cnt);
+        goto load_failed;
+    }
+   // 做点必要性的检查。当然可以再做其它检查
+   // 魔数检查0x7f E L F
+    if ((elf_hdr.e_ident[0] != ELF_MAGIC) || (elf_hdr.e_ident[1] != 'E')
+        || (elf_hdr.e_ident[2] != 'L') || (elf_hdr.e_ident[3] != 'F')) {
+        log_printf("check elf indent failed.");
+        goto load_failed;
+    }
+    // 必须是可执行文件和针对386处理器的类型，且有入口
+    if ((elf_hdr.e_type != ET_EXEC) || (elf_hdr.e_machine != ET_386) || (elf_hdr.e_entry == 0)) {
+        log_printf("check elf type or entry failed.");
+        goto load_failed;
+    }
+
+    // 必须有程序头部
+    if ((elf_hdr.e_phentsize == 0) || (elf_hdr.e_phoff == 0)) {
+        log_printf("none programe header");
+        goto load_failed;
+    }
+
+    //程序头表在ELF文件中的偏移
+    uint32_t e_phoff = elf_hdr.e_phoff;
+    for(int i = 0; i < elf_hdr.e_phnum; i++, e_phoff += elf_hdr.e_phentsize){
+        //前面进行读的时候更改了读写指针，将其定义到程序表的开头
+        //通过在文件中移动读写指针来读取不同的内容
+        if(sys_lseek(file, e_phoff, 0) < 0){
+            log_printf("lseek failed. read file failed.");
+            goto load_failed;
+        }
+        //读取一个程序头表项,虚拟地址和物理地址都是0x81000000
+        cnt = sys_read(file, (char*)&elf_phdr, sizeof(elf_phdr));
+        if(cnt < sizeof(elf_phdr)){
+            log_printf("read file failed.");
+            goto load_failed;
+        }
+
+        //判断该程序头能否加载，虚拟内存地址位于0x80000000以下
+        if((elf_phdr.p_type != 1) || (elf_phdr.p_vaddr < MEMORY_TASK_BASE)){
+            continue;//不能加载则跳过，尝试加载下一个
+        }
+
+        //将程序头结构加载到内存中
+        int err = load_phdr(file, &elf_phdr, page_dir);
+        if(err < 0){
+            log_printf("load program failed.");
+            goto load_failed;
+        }
+    }
+    sys_close(file);
+    return elf_hdr.e_entry;
+load_failed:
+    if(file){
+        sys_close(file);
+    }
+    return 0;
+}
+
+static int copy_args (char* to, uint32_t page_dir, int argc, char **argv){
+    task_args_t task_args;
+    task_args.argc = argc;
+    task_args.argv = (char **)(to + sizeof(task_args_t));
+    //返回地址目前不需要
+
+    char * dest_arg = to + sizeof(task_args_t) + sizeof(char *) * argc;
+    char ** dest_arg_tb = (char **)memory_get_paddr(page_dir, (uint32_t)(to + sizeof(task_args_t)));
+    for(int i = 0; i < argc; i++){
+        char * from = argv[i];
+        //加上结束符
+        int len = kernel_strlen(from) + 1;
+        int err = memory_copy_uvm_data((uint32_t)dest_arg, page_dir, (uint32_t)from, len);
+        ASSERT(err >= 0);
+        dest_arg_tb[i] = dest_arg;
+        dest_arg += len;
+
+    }
+    //将参数和环境变量拷贝到虚拟内存中
+    return memory_copy_uvm_data((uint32_t)to, page_dir, (uint32_t)&task_args, sizeof(task_args));
+}
+int sys_execve(char * pathname, char * argv[], char * envp[]){
+    task_t * task = task_current();
+
+    //将应用名称拷贝到task中，用于显示进程名称
+    kernel_strncpy(task->name, get_file_name(pathname), TASK_NAME_SIZE);
+    uint32_t old_page_dir = task->tss.cr3;
+    //为新的进程重新分配一个新的页表，不再使用之前的页表
+    uint32_t new_page_dir = memory_create_uvm();
+    if(!new_page_dir){
+        goto exec_failed;
+    }
+
+    //扫描elf文件的表头，将相应的数据拷贝到虚拟内存中
+    uint32_t entry = load_elf_file(task, pathname, new_page_dir);
+    if(entry == 0){
+        goto exec_failed;
+    }
+
+    //定义栈空间的大小和位置，将其与页表建立映射
+    //MEM_TASK_ARG_SIZE预留空间放置参数和环境变量
+    uint32_t stack_top = MEM_TASK_STACK_TOP - MEM_TASK_ARG_SIZE;
+    int err = memory_alloc_for_page_dir(
+        new_page_dir, MEM_TASK_STACK_TOP - MEM_TASK_STACK_SIZE,
+        MEM_TASK_STACK_SIZE, PTE_P | PTE_W | PTE_U
+    );
+    if(err < 0){
+        goto exec_failed;
+    }
+    int argc = string_count(argv);
+    err = copy_args((char *)stack_top, new_page_dir, argc, argv);
+    if(err < 0){
+        goto exec_failed;
+    }
+
+    syscall_frame_t * frame = (syscall_frame_t *)(task->tss.esp0 - sizeof(syscall_frame_t));
+    //eip修改为ELF的入口地址
+    frame->eip = entry;
+    frame->eax = frame->ebx = frame->ecx = frame->edx = frame->ebp = frame->edi = frame->esi = 0;
+    frame->eflags = EFLAGS_DEFAULT | EFLAGS_IF;
+    //所有的应用程序的段寄存器是同一个，不需要修改
+    //将栈设置好，要减去参数的空间
+    frame->esp = stack_top - sizeof(uint32_t) * SYSCALL_PARAM_COUNT;
+
+
+    //更新新的页表，并不总是能够立马生效
+    task->tss.cr3 = new_page_dir;
+    //强制更新，将new_page_dir更新到cr3中
+    mmu_set_page_dir(new_page_dir);
+    //销毁原来的页表(0x80000000)
+    memory_destroy_uvm(old_page_dir);
+
+    return 0;
+
+exec_failed:
+    if(new_page_dir){
+        task->tss.cr3 = old_page_dir;
+        mmu_set_page_dir(new_page_dir);
+
+        memory_destroy_uvm(new_page_dir);
+    }
+    //释放页表
+    return -1;
+}
