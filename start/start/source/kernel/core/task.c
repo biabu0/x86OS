@@ -89,6 +89,8 @@ int task_init(task_t * task, const char * name, int flag, uint32_t entry, uint32
     kernel_strncpy(task->name, name, TASK_NAME_SIZE);
     task->state = TASK_CREATED;
     task->sleep_ticks = 0;
+    task->heap_start = 0;
+    task->heap_end = 0;
 
     task->time_ticks = TASK_TIME_SLICE_DEFAULT;
     task->slice_ticks = task->time_ticks;
@@ -154,6 +156,11 @@ void task_first_init(void){
 
     //first_task分配的10页大小的位置中其余部分作为栈空间,将其设置到特权级3的位置
     task_init(&task_manager.first_task, "first task", 0, first_start, first_start + alloc_size);
+
+    //堆的起始地址就是在kernel.lds中定义的程序数据存储的结束地址，结束地址与起始地址是一样的；在first中没有预处理，C库也没有运行
+    task_manager.first_task.heap_start = (uint32_t)e_first_task;
+    task_manager.first_task.heap_end = (uint32_t)e_first_task;
+    
     write_tr(task_manager.first_task.tss_sel);
     task_manager.cur_task = &task_manager.first_task;
 
@@ -495,6 +502,9 @@ static uint32_t load_elf_file(task_t *task, const char * pathname, uint32_t page
             log_printf("load program failed.");
             goto load_failed;
         }
+
+        task->heap_start = elf_phdr.p_vaddr + elf_phdr.p_memsz;
+        task->heap_end = task->heap_start;
     }
     sys_close(file);
     return elf_hdr.e_entry;

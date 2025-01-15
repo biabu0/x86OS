@@ -3,18 +3,20 @@ SECTIONS
 {
     . = 0x81000000;
     .text : {
-        *(.text)
+        *(*.text)
     }
 
     .rodata : {
-        *(.rodata)
+        *(*.rodata)
     }
 
     .data : {
-        *(.data)
+        *(*.data)
     }
 
     .bss : {
-        *(.bss)
+        PROVIDE(__bss_start__ = .);
+        *(*.bss)
+        PROVIDE(__bss_end__ = .);
     }
 }

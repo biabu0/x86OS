@@ -30,6 +30,8 @@ typedef struct _task_t{
     }state;
     pid_t pid;
     struct _task_t * parent;
+    uint32_t heap_start;
+    uint32_t heap_end;
     
     int sleep_ticks;        //延时计数器，每次10ms（定时器中断的值）
     int time_ticks;     //计数器

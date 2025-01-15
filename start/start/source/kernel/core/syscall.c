@@ -2,6 +2,8 @@
 #include "core/task.h"
 #include "comm/types.h"
 #include "tools/log.h"
+#include "fs/fs.h"
+#include "core/memory.h"
 typedef int (*syscall_handler_t)(uint32_t arg0, uint32_t arg1, uint32_t arg2, uint32_t arg3);
 
 void sys_print_msg(char * fmt, int arg){
@@ -15,6 +17,16 @@ static const syscall_handler_t sys_table[] = {
     [SYS_fork] = (syscall_handler_t)sys_fork,
     [SYS_execve] = (syscall_handler_t)sys_execve,
     [SYS_yield] = (syscall_handler_t)sys_sched_yield,
+
+    [SYS_open] = (syscall_handler_t)sys_open,
+    [SYS_close] = (syscall_handler_t)sys_close,
+    [SYS_read] = (syscall_handler_t)sys_read,
+    [SYS_write] = (syscall_handler_t)sys_write,
+    [SYS_lseek] = (syscall_handler_t)sys_lseek,
+
+    [SYS_sbrk] = (syscall_handler_t)sys_sbrk,
+    [SYS_fstat] = (syscall_handler_t)sys_fstat,
+    [SYS_isatty] = (syscall_handler_t)sys_isatty,
 };
 void do_handler_syscall(syscall_frame_t * frame){
     if(frame->function_id < sizeof(sys_table)/sizeof(sys_table[0])){

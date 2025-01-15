@@ -302,3 +302,46 @@ int memory_copy_uvm_data(uint32_t to, uint32_t page_dir, uint32_t from, uint32_t
 
     return 0;
 }
+
+
+char * sys_sbrk(int incr){
+    task_t * task = task_current();
+    char * pre_head_end = (char *)task->heap_end;
+    int pre_incr = incr;
+    ASSERT(incr >= 0);
+    if(incr == 0){
+        log_printf("sbrk(0): end = 0x%x", pre_head_end);
+        return pre_head_end;
+    }
+    uint32_t start = task->heap_end;
+    uint32_t end = start + incr;
+
+    //如果start不是页边界对齐的 0X81001024
+    int start_offset = start % MEM_PAGE_SIZE;    //0X24
+
+    //起始地址不是页边界对齐的
+    if(start_offset){
+        //如果偏移量与要分配的内存没有超过一页的大小，则直接在原页内进行分配
+        if(start_offset + incr <= MEM_PAGE_SIZE){
+            task->heap_end = end;
+            log_printf("sbrk(%d): end = 0x%x", incr, end);
+            return pre_head_end;
+        }else{
+            //当前页中还没有分配的内存
+            uint32_t curr_size = MEM_PAGE_SIZE - start_offset;
+            start += curr_size;
+            incr -= curr_size;
+        }
+    }
+    if(incr){
+        uint32_t curr_size = end - start;
+        int err = memory_alloc_page_for(start, curr_size, PTE_P | PTE_W | PTE_U);
+        if(err < 0){
+            log_printf("sbrk: alloc mem failed.");
+            return (char *)-1;
+        }
+    }
+    log_printf("sbrk(%d): end = 0x%x", pre_incr, end);
+    task->heap_end = end;
+    return pre_head_end;
+}

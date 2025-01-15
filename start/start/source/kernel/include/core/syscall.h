@@ -2,13 +2,26 @@
 #define SYSCALL_H
 #include "comm/types.h"
 
+//进程相关
 #define SYS_sleep       0
 #define SYS_getpid      1
-#define SYS_printmsg    2
-#define SYS_fork        3
-#define SYS_execve      4
-#define SYS_yield       5
+#define SYS_fork        2
+#define SYS_execve      3
+#define SYS_yield       4
 
+//文件相关
+#define SYS_open        50
+#define SYS_read        51
+#define SYS_write       52
+#define SYS_lseek       53
+#define SYS_close       54
+
+
+#define SYS_fstat       55
+#define SYS_sbrk        56
+#define SYS_isatty      57
+
+#define SYS_printmsg    100
 
 #define SYSCALL_PARAM_COUNT 5
 
