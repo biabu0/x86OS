@@ -5,6 +5,8 @@
 #include "comm/cpu_instr.h"
 
 #include <sys/stat.h>
+#include "dev/console.h"
+
 static uint8_t TEMP_ADDR[100*1024];
 static uint8_t * temp_pos;
 
@@ -61,8 +63,9 @@ int sys_read(int file, char * ptr, int len){
 int sys_write(int file, char * ptr, int len){
     // 如果文件是标准输出，通过串口实现；希望printf函数的输出，能够显示到计算机的屏幕上，涉及显示器的处理
     if(file == 1){
-        ptr[len] = '\0';
-        log_printf("%s",ptr);
+        //ptr[len] = '\0';
+        console_write(0, ptr, len);     // 显示到屏幕上
+        //log_printf("%s",ptr);         // 显示到串口上
     }
     return -1;
 }

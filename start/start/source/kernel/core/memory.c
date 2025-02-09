@@ -3,6 +3,7 @@
 #include "tools/klib.h"
 #include "tools/log.h"
 #include "cpu/mmu.h"
+#include "dev/console.h"
 
 static addr_alloc_t paddr_alloc;
 
@@ -101,6 +102,8 @@ void create_kernel_table(void){
         {s_text, e_text, s_text, 0},
         // 可读写的数据空间
         {s_data, (void*)MEM_EBDA_START, s_data, PTE_W},
+        // 将显存地址映射，可写就行
+        {(void *)CONSOLE_DISP_ADDR, (void *)CONSOLE_DISP_END, (void *)CONSOLE_DISP_ADDR, PTE_W},
         // 将1M到128M的区域映射到物理内存中
         {(void *)MEM_EXT_START, (void *)MEM_EXT_END, (void *)MEM_EXT_START, PTE_W}
     };
