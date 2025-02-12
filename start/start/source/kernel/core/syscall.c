@@ -27,6 +27,7 @@ static const syscall_handler_t sys_table[] = {
     [SYS_sbrk] = (syscall_handler_t)sys_sbrk,
     [SYS_fstat] = (syscall_handler_t)sys_fstat,
     [SYS_isatty] = (syscall_handler_t)sys_isatty,
+    [SYS_dup] = (syscall_handler_t)sys_dup,
 };
 void do_handler_syscall(syscall_frame_t * frame){
     if(frame->function_id < sizeof(sys_table)/sizeof(sys_table[0])){

@@ -13,20 +13,19 @@
 #include "core/memory.h"
 #include "dev/console.h"
 #include "dev/kbd.h"
+#include "fs/fs.h"
 
 void kernel_init (boot_info_t *boot_info){
     ASSERT(boot_info->ram_region_count != 0);
   
     cpu_init();
-    log_init();
-    console_init();
-    
-    memory_init(boot_info);     //对整个内存初始化
     irq_init();
+    log_init();
+    memory_init(boot_info);     //对整个内存初始化
+    fs_init();
     time_init();
     task_mananger_init();  //濞寸姾顕ф慨鐔虹不閿涘嫭鍊為柣鈺兦归崣褔鎯冮崟顐㈢仴濠殿喖顑呯€碉�?
-    kbd_init();
-
+    //?????????console???
 }
 
 void move_to_first_task(void){

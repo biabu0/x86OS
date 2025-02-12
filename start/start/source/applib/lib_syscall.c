@@ -127,7 +127,6 @@ int isatty(int file){
     args.arg0 = (int)file;
     //使用调用门的设置，来调用操作系统内部的参数
     return sys_call(&args);
-
 }
 int fstat(int file, struct stat * st){
     syscall_srgs_t args;
@@ -143,6 +142,14 @@ void * sbrk (ptrdiff_t incr){
     args.id = SYS_sbrk;
     args.arg0 = (int)incr;
     //使用调用门的设置，来调用操作系统内部的参数
-    return sys_call(&args);
+    return (void *)sys_call(&args);
 
+}
+
+int dup(int file){
+    syscall_srgs_t args;
+    args.id = SYS_dup;
+    args.arg0 = (int)file;
+    //使用调用门的设置，来调用操作系统内部的参数
+    return sys_call(&args);
 }

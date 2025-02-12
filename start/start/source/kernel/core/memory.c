@@ -327,7 +327,7 @@ char * sys_sbrk(int incr){
         //如果偏移量与要分配的内存没有超过一页的大小，则直接在原页内进行分配
         if(start_offset + incr <= MEM_PAGE_SIZE){
             task->heap_end = end;
-            log_printf("sbrk(%d): end = 0x%x", incr, end);
+            //log_printf("sbrk(%d): end = 0x%x", incr, end);
             return pre_head_end;
         }else{
             //当前页中还没有分配的内存
@@ -344,7 +344,7 @@ char * sys_sbrk(int incr){
             return (char *)-1;
         }
     }
-    log_printf("sbrk(%d): end = 0x%x", pre_incr, end);
+    //log_printf("sbrk(%d): end = 0x%x", pre_incr, end);
     task->heap_end = end;
     return pre_head_end;
 }

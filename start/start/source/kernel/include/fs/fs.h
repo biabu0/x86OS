@@ -1,7 +1,10 @@
 #ifndef FS_H
 #define FS_H
 
+#include "fs/file.h"
 struct stat;
+
+void fs_init(void);
 
 //可变参数的形式
 int sys_open(const char * name, int flags, ...);
@@ -14,5 +17,5 @@ int sys_close(int file);
 
 int sys_fstat(int file, struct stat *st);
 int sys_isatty(int file);
-
+int sys_dup(int file);
 #endif

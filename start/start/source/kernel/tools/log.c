@@ -5,18 +5,23 @@
 #include "cpu/irq.h"
 #include "ipc/mutex.h"
 #include "dev/console.h"
+#include "dev/dev.h"
 
 static mutex_t mutex;
 
 
 #define LOG_USE_COM     0
-
-
 //第一个串行接口的起始地址
 #define COM1_PORT     0x3F8
+
+
+static int log_dev_id;
+
 //初始化串行接口，硬件相关的初始化工作,无需过多了解
 void log_init(void){
     mutex_init(&mutex);
+    //只需要修改设备号即可，其他不需要修改就可以向不同的设备中进行写
+    log_dev_id = dev_open(DEV_TTY, 0, (void*)0);
 #if LOG_USE_COM
     outb(COM1_PORT+1, 0x00);
     outb(COM1_PORT+3, 0x80);
@@ -52,9 +57,12 @@ void log_printf(const char * fmt, ...){
     outb(COM1_PORT, '\r');
     outb(COM1_PORT, '\n');
 #else
-    console_write(0, str_buf, kernel_strlen(str_buf));
+    //屏幕打印
+    //console_write(0, str_buf, kernel_strlen(str_buf));
+    dev_write(log_dev_id, 0, str_buf, kernel_strlen(str_buf));
     char c = '\n';
-    console_write(0, &c, 1);
+    //console_write(0, &c, 1);
+    dev_write(log_dev_id, 0, &c, 1);
 #endif
     //退出临界区保护模式，恢复之前的中断状态
     mutex_unlock(&mutex);

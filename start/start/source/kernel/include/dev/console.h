@@ -2,6 +2,7 @@
 #define CONSOLE_H
 
 #include "comm/types.h"
+#include "dev/tty.h"
 
 
 #define CONSOLE_DISP_ADDR   0xb8000
@@ -52,10 +53,10 @@ typedef struct _console_t {
     int curr_param_index;
 }console_t;
 
-int console_init(void);
+int console_init(int idx);
 //œÚ∆¡ƒªconsole–¥data
-int console_write(int console, char * data, int size);
+int console_write(tty_t * tty);
 void console_close(int console);
 
-
+void console_select(int idx);
 #endif

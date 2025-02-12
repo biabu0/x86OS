@@ -4,10 +4,10 @@
 #include "cpu/cpu.h"
 #include "comm/types.h"
 #include "tools/list.h"
-
+#include "fs/file.h"
 #define TASK_TIME_SLICE_DEFAULT 10  //10次定时中断
 #define TASK_NAME_SIZE 32
-
+#define TASK_OFILE_NR   128
 #define TASK_FLAGS_SYSTEM (1 << 0)
 
 
@@ -37,6 +37,7 @@ typedef struct _task_t{
     int time_ticks;     //计数器
     int slice_ticks;    //这里设置为10，递减的，定时器中断是10ms中断一次，所以,一个进程最多运行时间是100ms
 
+    file_t * file_table[TASK_OFILE_NR];       //存放打开文件的指针
     char name[TASK_NAME_SIZE];
 
     list_node_t wait_node;  //用于插入信号量等待队列中
@@ -46,6 +47,10 @@ typedef struct _task_t{
     tss_t tss;
     int tss_sel;
 }task_t;
+
+file_t * task_file(int fd);
+int task_alloc_fd(file_t * file);
+void task_remove_fd(int fd);
 
 // 传入程序的入口地址， 栈的指针
 int task_init(task_t * task, const char * name, int flag, uint32_t entry, uint32_t esp);
@@ -91,5 +96,8 @@ void sys_sleep(uint32_t ms);
 int sys_getpid(void);
 int sys_fork(void);
 int sys_execve(char * pathname, char * argv[], char * envp[]);
+
+
+
 
 #endif

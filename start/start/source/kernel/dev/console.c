@@ -1,18 +1,22 @@
 #include "dev/console.h"
 #include "tools/klib.h"
 #include "comm/cpu_instr.h"
+#include "dev/tty.h"
+#include "cpu/irq.h"
 
-#define CONSOLE_NR 1
+#define CONSOLE_NR 8
 static console_t console_buf[CONSOLE_NR];
-
+static int curr_console_id = 0;
 
 //获取当前光标位置
 static int read_cursor_pos(void){
     int pos;
+    irq_state_t state = irq_enter_protection();
     outb(0x3D4, 0xF);
     pos = inb(0x3d5);
     outb(0x3D4, 0xE);
     pos |= inb(0x3d5) << 8;
+    irq_leave_protection(state);
     return pos;
 }
 
@@ -20,11 +24,15 @@ static int read_cursor_pos(void){
 //更新光标位置
 static int update_cursor_pos(console_t * console){
     //获取位置
-    uint16_t pos = console->cursor_row * console->display_cols + console->cursor_col;
+    uint16_t pos = (console- console_buf) * console->display_rows * console->display_cols;
+    pos += console->cursor_row * console->display_cols + console->cursor_col;
+    //向端口写入光标的位置
+    irq_state_t state = irq_enter_protection();
     outb(0x3D4, 0xF);
     outb(0x3d5,(uint8_t)(pos&0xFF));
     outb(0x3D4, 0xE);
     outb(0x3d5, (uint8_t)((pos >> 8) & 0xFF));
+    irq_leave_protection(state);
     return pos;
 }
 
@@ -116,27 +124,33 @@ static void clear_display(console_t * console){
         start++;
     }
 }
-int console_init(void){
-    for(int i = 0; i < CONSOLE_NR; i++){
-        console_t * console = console_buf + i;
+int console_init(int idx){
+    
+        console_t * console = console_buf + idx;
         //不再清空，可能有boot和loader打印的信息
         // console->cursor_row = 0;
         // console->cursor_col = 0;
         console->display_rows = CONSOLE_ROW_MAX;
         console->display_cols = CONSOLE_COL_MAX;
-        int cursor_pos = read_cursor_pos();
-        console->cursor_row = cursor_pos / console->display_cols;
-        console->cursor_col = cursor_pos % console->display_cols;
+        console->disp_base = (disp_char_t *)CONSOLE_DISP_ADDR + idx * (CONSOLE_COL_MAX * CONSOLE_ROW_MAX);
+        
         console->foreground = CONSOLE_WHITE;
         console->background = CONSOLE_BLACK;
+        if(idx == 0){
+            int cursor_pos = read_cursor_pos();
+            console->cursor_row = cursor_pos / console->display_cols;
+            console->cursor_col = cursor_pos % console->display_cols;
+        }else{
+            console->cursor_col = 0;
+            console->cursor_row = 0;
+            clear_display(console);
+            //update_cursor_pos(console);
+        }
         console->old_cursor_col = console->cursor_col;
         console->old_cursor_row = console->cursor_row;
         console->write_state = CONSOLE_WRITE_NORMAL;
-        console->disp_base = (disp_char_t *)CONSOLE_DISP_ADDR + i * (CONSOLE_COL_MAX * CONSOLE_ROW_MAX);
-
         //clear_display(console);
-    }
-
+    
     return 0;
 }
 
@@ -146,8 +160,10 @@ static void write_norm(console_t * c, char ch){
         case ASCII_ESC:
             c->write_state = CONSOLE_WRITE_ESC;
             break;
+        case '\r':
+            move_to_col0(c);
+            break;
         case '\n':
-            move_to_col0(c);//移动到行首
             move_next_line(c);//移动到下一行
             break;
         case '\b':
@@ -318,12 +334,19 @@ static void write_esc(console_t * console, char ch){
 
 
 //向屏幕console写data
-int console_write(int console, char * data, int size){
+int console_write(tty_t * tty){
     //第console块屏幕的显存位置
+    int console = tty->console_idx;
     console_t * c = console_buf + console;
-    int len;
-    for(len = 0; len < size; len++){
-        char ch = *data++;
+    int len = 0;
+    do{
+        char ch;
+        int err = tty_fifo_get(&tty->ofifo, &ch);
+        if(err < 0){
+            break;
+        }
+        //通知
+        sem_notify(&tty->osem);
         switch(c->write_state){
             case CONSOLE_WRITE_NORMAL:
                 write_norm(c, ch);
@@ -337,12 +360,33 @@ int console_write(int console, char * data, int size){
             default:
                 break;
         }
-        
-
+        len++;
+    }while(1);
+    if(tty->console_idx == curr_console_id){
+        update_cursor_pos(c);
     }
-    update_cursor_pos(c);
+    
     return len;
 }
 void console_close(int console){
     //
+}
+
+void console_select(int idx){
+    console_t * console = console_buf + idx;
+    if(console->disp_base == 0){    //当前设备没有打开的时候
+        console_init(idx);
+    }
+    uint16_t pos = idx * console->display_rows * console->display_cols;
+
+    outb(0x3D4, 0xC);                       //写高地址
+    outb(0x3D5, (uint8_t)(pos >> 8) & 0xFF);
+    outb(0x3D4, 0xD);                       //写低地址
+    outb(0x3D5, (uint8_t)(pos & 0xFF));
+
+    curr_console_id = idx;
+    update_cursor_pos(console);
+
+    // char num = idx + '0';
+    // show_char(console, num);
 }

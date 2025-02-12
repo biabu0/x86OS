@@ -21,6 +21,32 @@ static mutex_t pid_mutex;
 static task_t task_table[TASK_NR];
 static mutex_t task_table_mutex;
 
+
+file_t * task_file(int fd){
+    if((fd >= 0) && (fd < TASK_OFILE_NR)){
+        file_t * file = task_current()->file_table[fd];
+        return file;
+    }
+    return (file_t *)0;
+}
+int task_alloc_fd(file_t * file){
+    task_t * task = task_current();
+    for(int i = 0; i < TASK_OFILE_NR; i++){
+        file_t * p = task->file_table[i];
+        if(p == (file_t *) 0){
+            task->file_table[i] = file;
+            return i;
+        }
+    }
+    return -1;
+}
+void task_remove_fd(int fd){
+    if((fd >= 0) && (fd < TASK_OFILE_NR)){
+        task_t * task = task_current();
+        task->file_table[fd] = (file_t *)0;
+    }
+}
+
 static int tss_init(task_t * task, int flag, uint32_t entry, uint32_t esp){
     int tss_sel = gdt_alloc_desc();
     if(tss_sel < 0){
@@ -98,6 +124,8 @@ int task_init(task_t * task, const char * name, int flag, uint32_t entry, uint32
     list_node_init(&task->all_node);
     list_node_init(&task->run_node);
     list_node_init(&task->wait_node);
+
+    kernel_memset(&task->file_table, 0, sizeof(task->file_table));      //情况进程的文件描述符表
 
     irq_state_t state = irq_enter_protection();
     //直接将task结构地址作为pid，是唯一的

@@ -3,6 +3,7 @@
 #include "tools/log.h"
 #include "comm/cpu_instr.h"
 #include "tools/klib.h"
+#include "dev/tty.h"
 static kbd_state_t kbd_stat;
 
 static const key_map_t map_table[256] = {
@@ -18,7 +19,7 @@ static const key_map_t map_table[256] = {
     [0x0B] = {'0', ')'},
     [0x0C] = {'-', '_'},
     [0x0D] = {'=', '+'},
-    [0x0E] = {'\b', '\b'},
+    [0x0E] = {0x7f, 0x7f},      //0x7f才是删除；\b只是退格符，无法在输入的时候删除字符
     [0x0F] = {'\t', '\t'},
     [0x10] = {'q', 'Q'},
     [0x11] = {'w', 'W'},
@@ -61,9 +62,13 @@ static const key_map_t map_table[256] = {
 
 //BIOS已经进行了初始化，只需要修改为自己的中断处理程序
 void kbd_init(void){
-    kernel_memset(&kbd_stat, 0, sizeof(kbd_stat));
-    irq_install(IRQ1_KEYBOARD, (irq_handler_t)exception_handler_kbd);
-    irq_enable(IRQ1_KEYBOARD);
+    static int inited = 0;//静态变量在函数调用结束后仍然保持其值，因此 inited 只会被初始化一次。
+    if(!inited){
+        kernel_memset(&kbd_stat, 0, sizeof(kbd_stat));
+        irq_install(IRQ1_KEYBOARD, (irq_handler_t)exception_handler_kbd);
+        irq_enable(IRQ1_KEYBOARD);
+        inited = 1;
+    }
 }
 
 static inline int is_make_code(uint8_t key_code){
@@ -87,6 +92,14 @@ static void do_e0_key(uint8_t raw_code){
     }
     
 }
+
+static void do_fx_key(int key){
+    int index = key - KEY_F1;
+    if(kbd_stat.lctrl_press || kbd_stat.rctrl_press){
+        tty_select(index);
+    }
+}
+
 static void do_normal_key(uint8_t raw_code){
     char key = get_key(raw_code);
     int is_make = is_make_code(raw_code);
@@ -116,7 +129,10 @@ static void do_normal_key(uint8_t raw_code){
         case KEY_F6:
         case KEY_F7:
         case KEY_F8:
+            do_fx_key(key);//进行tty设备的切换与处理
+            break;
         case KEY_F9:
+
         case KEY_F10:
         case KEY_F11:
         case KEY_F12:
@@ -136,7 +152,8 @@ static void do_normal_key(uint8_t raw_code){
                         key = key - 'a' + 'A';
                     }
                 }
-                log_printf("key: %c", key);
+                //log_printf("key: %c", key);//不能直接进行打印，应该给到tty设备
+                tty_in(key);//第key个tty设备
             }
             break;     
     }
