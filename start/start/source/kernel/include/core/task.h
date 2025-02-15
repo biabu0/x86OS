@@ -27,6 +27,7 @@ typedef struct _task_t{
         TASK_SLEEP, //延时状态
         TASK_READY,
         TASK_WAITTING,
+        TASK_ZOMBIE,//僵死状态
     }state;
     pid_t pid;
     struct _task_t * parent;
@@ -36,6 +37,7 @@ typedef struct _task_t{
     int sleep_ticks;        //延时计数器，每次10ms（定时器中断的值）
     int time_ticks;     //计数器
     int slice_ticks;    //这里设置为10，递减的，定时器中断是10ms中断一次，所以,一个进程最多运行时间是100ms
+    int status;         //保存exit的退出状态码
 
     file_t * file_table[TASK_OFILE_NR];       //存放打开文件的指针
     char name[TASK_NAME_SIZE];
@@ -96,8 +98,7 @@ void sys_sleep(uint32_t ms);
 int sys_getpid(void);
 int sys_fork(void);
 int sys_execve(char * pathname, char * argv[], char * envp[]);
-
-
-
+void sys_exit(int status);
+int sys_wait(int * status);
 
 #endif

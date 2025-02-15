@@ -153,3 +153,21 @@ int dup(int file){
     //使用调用门的设置，来调用操作系统内部的参数
     return sys_call(&args);
 }
+
+void _exit(int status){
+    syscall_srgs_t args;
+    args.id = SYS_exit;
+    args.arg0 = (int)status;
+    //使用调用门的设置，来调用操作系统内部的参数
+    sys_call(&args);
+    for(;;){}
+}
+
+int wait(int * status) {
+    syscall_srgs_t args;
+    args.id = SYS_wait;
+    args.arg0 = (int)status;
+    //使用调用门的设置，来调用操作系统内部的参数
+    return sys_call(&args);
+
+}

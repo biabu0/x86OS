@@ -149,6 +149,8 @@ int console_init(int idx){
         console->old_cursor_col = console->cursor_col;
         console->old_cursor_row = console->cursor_row;
         console->write_state = CONSOLE_WRITE_NORMAL;
+
+        mutex_init(&console->mutex);
         //clear_display(console);
     
     return 0;
@@ -339,6 +341,7 @@ int console_write(tty_t * tty){
     int console = tty->console_idx;
     console_t * c = console_buf + console;
     int len = 0;
+    mutex_locK(&c->mutex);
     do{
         char ch;
         int err = tty_fifo_get(&tty->ofifo, &ch);
@@ -362,6 +365,7 @@ int console_write(tty_t * tty){
         }
         len++;
     }while(1);
+    mutex_unlock(&c->mutex);
     if(tty->console_idx == curr_console_id){
         update_cursor_pos(c);
     }

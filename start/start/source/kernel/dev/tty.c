@@ -140,6 +140,14 @@ int tty_read(device_t * dev, int addr, char * buf, int size){
         char ch;
         tty_fifo_get(&tty->ififo, &ch);
         switch(ch){
+            //0x7F是退格键，退格之后也应该在tty设备的缓冲区中删除
+            case 0x7F:
+                if(len == 0){
+                    continue;
+                }
+                len--;
+                pbuf--;
+                break;
             case '\n':
                 if((len < size-1) && (tty->iflags & TTY_INCLR)){
                     *pbuf++ = '\r';

@@ -38,7 +38,8 @@ int first_task_main(void){
         // log_printf("first task.");
         // sys_sleep(1000);
         //print_msg("task id = %d", pid);
-        msleep(1000);
+        int status;
+        wait(&status);
     }
     return 0;
 }

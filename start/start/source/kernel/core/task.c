@@ -125,15 +125,13 @@ int task_init(task_t * task, const char * name, int flag, uint32_t entry, uint32
     list_node_init(&task->run_node);
     list_node_init(&task->wait_node);
 
-    kernel_memset(&task->file_table, 0, sizeof(task->file_table));      //情况进程的文件描述符表
+    kernel_memset(task->file_table, 0, sizeof(task->file_table));      //情况进程的文件描述符表
 
     irq_state_t state = irq_enter_protection();
     //直接将task结构地址作为pid，是唯一的
     task->pid = allocate_pid();
     //初始的时候父进程为0
     task->parent = (task_t *)0;
-
-
     list_insert_last(&task_manager.task_list, &task->all_node);
     irq_leave_protection(state);
 
@@ -389,6 +387,18 @@ static void free_task(task_t * task){
     mutex_unlock(&task_table_mutex);
 }
 
+static void copy_opened_files(task_t * child_task){
+    task_t * parent = child_task->parent;
+    for(int i = 0; i < TASK_OFILE_NR; i++){
+        file_t * file = parent->file_table[i];
+        if(file){
+            file_inc_ref(file);     //子进程关闭std三次,shell关闭std三次，共关闭6次，所以需要对file文件的打开次数增加
+            child_task->file_table[i] = file;
+        }
+    }
+    return ;
+}
+
 int sys_fork(void){
     task_t * parent_task = task_current();
     task_t * child_task = alloc_task();
@@ -403,6 +413,7 @@ int sys_fork(void){
     if(err < 0){
         goto fork_failed;
     }
+    
     //对子进程的tss进行初始化
     tss_t * tss = &child_task->tss;
     //将eax设置为0，这样子进程的返回值就是0
@@ -425,6 +436,7 @@ int sys_fork(void){
     if((child_task->tss.cr3 = memory_copy_uvm(parent_task->tss.cr3)) < 0){
         goto fork_failed;
     }
+    copy_opened_files(child_task);
     task_start(child_task);
     
     return child_task->pid;
@@ -626,4 +638,100 @@ exec_failed:
     }
     //释放页表
     return -1;
+}
+
+int sys_wait(int* status) {
+    task_t * curr_task = task_current();
+    for (;;) {
+        // 遍历，找僵尸状态的进程，然后回收。如果收不到，则进入睡眠态
+        mutex_locK(&task_table_mutex);
+        for (int i = 0; i < TASK_NR; i++) {
+            task_t * task = task_table + i;
+            if (task->parent != curr_task) {
+                continue;
+            }
+
+            if (task->state == TASK_ZOMBIE) {
+                int pid = task->pid;
+
+                *status = task->status;
+
+                memory_destroy_uvm(task->tss.cr3);          //释放应用空间
+                memory_free_page(task->tss.esp0 - MEM_PAGE_SIZE);            //释放任务栈空间
+                kernel_memset(task, 0, sizeof(task_t));
+
+                mutex_unlock(&task_table_mutex);
+                return pid;
+            }
+        }
+        mutex_unlock(&task_table_mutex);
+
+        // 找不到，则等待
+        irq_state_t state = irq_enter_protection();
+        task_set_block(curr_task);
+        curr_task->state = TASK_WAITTING;
+        task_dispatch();
+        irq_leave_protection(state);
+    }
+}
+
+/**
+ * @brief 退出进程
+ */
+void sys_exit(int status) {
+    task_t * curr_task = task_current();
+
+    // 关闭所有已经打开的文件, 标准输入输出库会由newlib自行关闭，但这里仍然再处理下
+    for (int fd = 0; fd < TASK_OFILE_NR; fd++) {
+        file_t * file = curr_task->file_table[fd];
+        if (file) {
+            sys_close(fd);
+            curr_task->file_table[fd] = (file_t *)0;
+        }
+    }
+
+    int move_child = 0;     //是否子进程处于僵死状态
+
+    // 找所有的子进程，将其转交给init进程
+    mutex_locK(&task_table_mutex);
+    for (int i = 0; i < TASK_OFILE_NR; i++) {
+        task_t * task = task_table + i;
+        // 如果要exit的进程有子进程，则需要将子进程转交给init进程
+        if (task->parent == curr_task) {
+            // 有子进程，则转给init_task
+            task->parent = &task_manager.first_task;
+
+            // 如果子进程中有僵尸进程，唤醒回收资源
+            // 并不由自己回收，因为自己将要退出
+            if (task->state == TASK_ZOMBIE) {
+                move_child = 1;
+            }
+        }
+    }
+    mutex_unlock(&task_table_mutex);
+
+
+    irq_state_t state = irq_enter_protection();
+
+    // 如果有移动子进程，则唤醒init进程
+    task_t * parent = curr_task->parent;
+    if (move_child && (parent != &task_manager.first_task)) {  // 如果父进程为init进程，在下方唤醒
+        if (task_manager.first_task.state == TASK_WAITTING) {
+            task_set_ready(&task_manager.first_task);
+        }
+    }
+
+    // 如果有父任务在wait，则唤醒父任务进行回收
+    // 如果父进程没有等待，则一直处理僵死状态？
+    if (parent->state == TASK_WAITTING) {
+        task_set_ready(curr_task->parent);
+    }
+
+    // 保存返回值，进入僵尸状态
+    curr_task->status = status;
+    curr_task->state = TASK_ZOMBIE;
+    task_set_block(curr_task);
+    task_dispatch();
+
+    irq_leave_protection(state);
 }

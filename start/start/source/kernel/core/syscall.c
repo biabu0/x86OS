@@ -17,6 +17,8 @@ static const syscall_handler_t sys_table[] = {
     [SYS_fork] = (syscall_handler_t)sys_fork,
     [SYS_execve] = (syscall_handler_t)sys_execve,
     [SYS_yield] = (syscall_handler_t)sys_sched_yield,
+    [SYS_exit] = (syscall_handler_t)sys_exit,
+    [SYS_wait] = (syscall_handler_t)sys_wait,
 
     [SYS_open] = (syscall_handler_t)sys_open,
     [SYS_close] = (syscall_handler_t)sys_close,
@@ -28,6 +30,7 @@ static const syscall_handler_t sys_table[] = {
     [SYS_fstat] = (syscall_handler_t)sys_fstat,
     [SYS_isatty] = (syscall_handler_t)sys_isatty,
     [SYS_dup] = (syscall_handler_t)sys_dup,
+
 };
 void do_handler_syscall(syscall_frame_t * frame){
     if(frame->function_id < sizeof(sys_table)/sizeof(sys_table[0])){

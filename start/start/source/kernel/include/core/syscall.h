@@ -8,6 +8,8 @@
 #define SYS_fork        2
 #define SYS_execve      3
 #define SYS_yield       4
+#define SYS_exit        5
+#define SYS_wait        6
 
 //文件相关
 #define SYS_open        50
@@ -21,6 +23,7 @@
 #define SYS_sbrk        56
 #define SYS_isatty      57
 #define SYS_dup         58
+
 
 #define SYS_printmsg    100
 

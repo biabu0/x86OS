@@ -32,3 +32,9 @@ void file_table_init(void){
     mutex_init(&file_alloc_mutex);
     kernel_memset(file_table, 0, sizeof(file_table));
 }
+
+void file_inc_ref(file_t *file){
+    mutex_locK(&file_alloc_mutex);
+    file->ref++;
+    mutex_unlock(&file_alloc_mutex);
+}
