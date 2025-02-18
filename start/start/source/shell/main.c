@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <getopt.h>
+#include <sys/file.h>
 
 char cmd_buf[256];
 static cli_t cli;       //命令行解释器
@@ -158,7 +159,7 @@ static void run_exec_file(const char * path, int argc, char ** argv){
 }
 
 int main (int argc, char **argv){
-    open(argv[0], 0);               //打开tty设备，返回的id是0   stdin
+    open(argv[0], O_RDWR);               //打开tty设备，返回的id是0   stdin, 读写方式
     dup(0);                         //1   stdout        
     //dup 函数用于复制一个现有的文件描述符，返回一个新的文件描述符，这个新的文件描述符与原文件描述符指向同一个文件、管道或设备。
     dup(0);               //2   stderr

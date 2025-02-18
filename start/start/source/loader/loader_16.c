@@ -74,8 +74,9 @@ static void  detect_memory(void) {
     show_msg("ok.\r\n"); 
 }
 
-// GDT表。临时用，后面内容会替换成自己的
+// GDT表初始化，临时用，后面内容会替换成自己的
 // GDT表项太小，实现多进程，中断管理会加载新的配置项。，该表内存区域位于loader，可能会覆盖
+// 此时就可以从GDT表中查找地址，也就是可以进入32位保护模式了
 uint16_t gdt_table[][4] = {
     {0, 0, 0, 0},						//第0个表项，保留
     {0xFFFF, 0x0000, 0x9a00, 0x00cf},	//代码段
@@ -93,12 +94,13 @@ static void enter_protect_mode(void){
     // 加载GDT。由于中断已经关掉，IDT不需要加载
     lgdt((uint32_t)gdt_table, sizeof(gdt_table));
 
-    // 打开CR0的保护模式位，进入保持模式
+    // 打开CR0的保护模式位，进入保护模式
     uint32_t cr0 = read_cr0();
     write_cr0(cr0 | (1 << 0));
 
     // 长跳转进入到保护模式
     // 使用长跳转，以便清空流水线，将里面的16位代码给清空
+	//8表示GDT表中的第一个表项，也就是代码段，基地址是0x0000的地址
     far_jump(8, (uint32_t)protect_mode_entry);
 }                  
 void loader_entry(void){

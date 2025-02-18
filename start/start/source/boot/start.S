@@ -12,6 +12,7 @@
 
   	// 16位代码，务必加上
   	.code16
+	// 定义代码段表明之后的代码位于代码段,已经在CMakeLists中定义了此处为0x7c00的位置
  	.text
 	.global _start
 	.extern boot_entry
@@ -26,14 +27,31 @@ _start:
 	mov $_start, %esp
 	
 	mov $0xe, %ah
-	mov $'L', %al
-	int $0x10 
+	mov $'w', %al
+	int $0x10
+
+	mov $0xe, %ah
+	mov $'y', %al
+	int $0x10
+
+	mov $0xe, %ah
+	mov $'l', %al
+	int $0x10
+
+	mov $0xe, %ah
+	mov $'O', %al
+	int $0x10
+
+	mov $0xe, %ah
+	mov $'S', %al
+	int $0x10
+
 read_loader:
 	mov $0x8000, %bx	// 读取到的内存地址
-	mov $0x2, %cx		// ch:磁道号，cl起始扇区号
+	mov $0x2, %cx		// ch:磁道号,cl起始扇区号
 	mov $0x2, %ah		// ah: 0x2读磁盘命令
-	mov $64, %al		// al: 读取的扇区数量, 必须小于128，暂设置成32KB
-	mov $0x0080, %dx	// dh: 磁头号，dl驱动器号0x80(磁盘1)
+	mov $64, %al		// al: 读取的扇区数量, 必须小于128,暂设置成32KB
+	mov $0x0080, %dx	// dh: 磁头号,dl驱动器号0x80(磁盘1)
 	int $0x13			//磁盘读取
 	jc read_loader
 

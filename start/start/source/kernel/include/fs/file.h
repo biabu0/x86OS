@@ -10,6 +10,8 @@ typedef enum _file_type_t{
     FILE_TTY,
 }file_type_t;
 
+struct _fs_t;//加上一个前置声明，因为在fs.h中已经包含了file.h，如果再在file.h中包含fs.h，就会造成循环包含，所以这里加上一个前置声明
+
 typedef struct _file_t{
     char file_name[FILE_NAME_SIZE]; //文件名称
     file_type_t type;               //文件类型
@@ -18,6 +20,7 @@ typedef struct _file_t{
     int dev_id;                     //文件设备id
     int pos;                        //文件读写位置
     int mode;                       //文件读写模式
+    struct _fs_t * fs;
 }file_t;
 
 file_t * file_alloc(void);
