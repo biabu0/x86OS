@@ -5,6 +5,7 @@
 enum{
     DEV_UNKONWN = 0,
     DEV_TTY,
+    DEV_DISK,
 };
 //某一种类型下的特定某种设备
 typedef struct _device_t{

@@ -6,12 +6,15 @@
 #include "comm/cpu_instr.h"
 #include "tools/log.h"
 
+#include "dev/disk.h"
 #include <sys/stat.h>
 #include "dev/console.h"
 #include "dev/dev.h"
 #include "core/task.h"
 #include "tools/log.h"
 #include <sys/file.h>
+#include "fs/fatfs/fatfs.h"
+#include "os_cfg.h"
 
 //最多支持10个文件系统节点加入到链表中
 #define FS_TABLE_SIZE 10
@@ -22,6 +25,9 @@ static fs_t fs_table[FS_TABLE_SIZE];
 static list_t free_list;
 
 extern fs_op_t devfs_op;
+extern fs_op_t fatfs_op;
+
+static fs_t * root_fs;
 
 static uint8_t TEMP_ADDR[100*1024];
 static uint8_t * temp_pos;
@@ -94,7 +100,9 @@ int path_begin_with(const char * path, const char * str){
 int sys_open(const char * name, int flags, ...){
     //shell文件的加载
     if(kernel_strncmp(name, "/shell.elf", 3) == 0){
-        read_disk(5000, 80, (uint8_t *)TEMP_ADDR);
+        int dev_id = dev_open(DEV_DISK, 0xa0, (void *)0);  //0xa0，是第0个分区，描述的是整个磁盘
+        dev_read(dev_id, 5000, (uint8_t *)TEMP_ADDR, 80);
+        // read_disk(5000, 80, (uint8_t *)TEMP_ADDR);      //从第5000个扇区开始读到内存中
         temp_pos = TEMP_ADDR;
         return TEMP_FILE_ID;
     }
@@ -123,6 +131,7 @@ int sys_open(const char * name, int flags, ...){
     if(fs){
         name = path_next_child(name);   //  从/dev/tty0中获得tty0
     }else{
+        fs = root_fs;
         //给一个缺省的
     }
 
@@ -313,6 +322,8 @@ int sys_dup(int file){
 
 static fs_op_t * get_fs_op(fs_type_t type, int major){
     switch(type){
+        case FS_FAT16:
+            return &(fatfs_op);
         case FS_DEVFS:
             return &(devfs_op);
         default:
@@ -321,55 +332,106 @@ static fs_op_t * get_fs_op(fs_type_t type, int major){
 }
 
 //mount_point：挂载点，用于从链表中找相应的结构
-static fs_t * mount(fs_type_t type, char * mount_point, int dev_major, int dev_minor){
-    fs_t * fs = (fs_t *)0;
-    log_printf("mount file system,name: %s, dev: %x", mount_point, dev_major);
-    //先查看是否已经挂载了
-    list_node_t * curr = list_first(&mounted_list);
-    while(curr){
-        fs_t * fs = list_node_parent(curr, fs_t, node);
-        if(kernel_strncmp(fs->mount_point, mount_point, FS_MOUNT_SIZE) == 0){
-            log_printf("fs already ,ounted");
-            goto mount_failed;
-        }
-        curr = list_node_next(curr);
-    }
-    //从空闲链表中分配一个节点
-    list_node_t * free_node = list_remove_first(&free_list);
-    if(!free_node){
-        log_printf("no free fs, mount failed");
-        goto mount_failed;
-    }
-    //获取分配的节点的fs结构
-    fs = list_node_parent(free_node, fs_t, node);
+static fs_t * mount (fs_type_t type, char * mount_point, int dev_major, int dev_minor) {
+	fs_t * fs = (fs_t *)0;
 
-    //分配之后进行清零
-    kernel_memset(fs, 0, sizeof(fs_t));
-    //设置挂载点
-    kernel_strncpy(fs->mount_point, mount_point, FS_MOUNT_SIZE);
-    //根据文件系统类型获取文件系统操作结构
-    fs_op_t * op = fs->op = get_fs_op(type, dev_major);
-    if(!op){
-        log_printf("unsupported fs type: %d", type);
-        goto mount_failed;
-    }
+	log_printf("mount file system, name: %s, dev: %x", mount_point, dev_major);
 
-    fs->op = op;
-    //调用特定的文件系统的初始化
-    if(op->mount(fs, dev_major, dev_minor) < 0){
-        log_printf("mount failed");
-        goto mount_failed;
-    }
-    //挂载成功，加入挂载链表
-    list_insert_last(&mounted_list, &fs->node);
-    return fs;
+	// 遍历，查找是否已经有挂载
+ 	list_node_t * curr = list_first(&mounted_list);
+	while (curr) {
+		fs_t * fs = list_node_parent(curr, fs_t, node);
+		if (kernel_strncmp(fs->mount_point, mount_point, FS_MOUNT_SIZE) == 0) {
+			log_printf("fs alreay mounted.");
+			goto mount_failed;
+		}
+		curr = list_node_next(curr);
+	}
+
+	// 分配新的fs结构
+	list_node_t * free_node = list_remove_first(&free_list);
+	if (!free_node) {
+		log_printf("no free fs, mount failed.");
+		goto mount_failed;
+	}
+	fs = list_node_parent(free_node, fs_t, node);
+
+	// 检查挂载的文件系统类型：不检查实际
+	fs_op_t * op = get_fs_op(type, dev_major);
+	if (!op) {
+		log_printf("unsupported fs type: %d", type);
+		goto mount_failed;
+	}
+
+	// 给定数据一些缺省的值
+	kernel_memset(fs, 0, sizeof(fs_t));
+	kernel_strncpy(fs->mount_point, mount_point, FS_MOUNT_SIZE);
+	fs->op = op;
+	fs->mutex = (mutex_t *)0;
+
+	// 挂载文件系统
+	if (op->mount(fs, dev_major, dev_minor) < 0) {
+		log_printf("mount fs %s failed", mount_point);
+		goto mount_failed;
+	}
+	list_insert_last(&mounted_list, &fs->node);
+	return fs;
 mount_failed:
-    if(fs){
-        list_insert_first(&free_list, &fs->node);
-    }
-
-    return (fs_t *)0;
+	if (fs) {
+		// 回收fs
+		list_insert_first(&free_list, &fs->node);
+	}
+	return (fs_t *)0;
 }
+// static fs_t * mount(fs_type_t type, char * mount_point, int dev_major, int dev_minor){
+//     fs_t * fs = (fs_t *)0;
+//     log_printf("mount file system,name: %s, dev: %x", mount_point, dev_major);
+//     //先查看是否已经挂载了
+//     list_node_t * curr = list_first(&mounted_list);
+//     while(curr){
+//         fs_t * fs = list_node_parent(curr, fs_t, node);
+//         if(kernel_strncmp(fs->mount_point, mount_point, FS_MOUNT_SIZE) == 0){
+//             log_printf("fs already ,ounted");
+//             goto mount_failed;
+//         }
+//         curr = list_node_next(curr);
+//     }
+//     //从空闲链表中分配一个节点
+//     list_node_t * free_node = list_remove_first(&free_list);
+//     if(!free_node){
+//         log_printf("no free fs, mount failed");
+//         goto mount_failed;
+//     }
+//     //获取分配的节点的fs结构
+//     fs = list_node_parent(free_node, fs_t, node);
+
+//     //分配之后进行清零
+//     kernel_memset(fs, 0, sizeof(fs_t));
+//     //设置挂载点
+//     kernel_strncpy(fs->mount_point, mount_point, FS_MOUNT_SIZE);
+//     //根据文件系统类型获取文件系统操作结构
+//     fs_op_t * op = fs->op = get_fs_op(type, dev_major);
+//     if(!op){
+//         log_printf("unsupported fs type: %d", type);
+//         goto mount_failed;
+//     }
+
+//     fs->op = op;
+//     //调用特定的文件系统的初始化
+//     if(op->mount(fs, dev_major, dev_minor) < 0){
+//         log_printf("mount failed");
+//         goto mount_failed;
+//     }
+//     //挂载成功，加入挂载链表
+//     list_insert_last(&mounted_list, &fs->node);
+//     return fs;
+// mount_failed:
+//     if(fs){
+//         list_insert_first(&free_list, &fs->node);
+//     }
+
+//     return (fs_t *)0;
+// }
 
 static void mount_list_init(void){
     list_init(&free_list);
@@ -383,8 +445,14 @@ void fs_init(void){
     mount_list_init();
     file_table_init();
 
+    disk_init();
+
     fs_t * fs = mount(FS_DEVFS, "/dev", 0, 0);
     ASSERT(fs != (fs_t*)0);
+
+    //根目录
+//    root_fs = mount(FS_FAT16, "/home", ROOT_DEV);
+//    ASSERT(root_fs != (fs_t*)0);
 }
 
 
@@ -404,6 +472,4 @@ const char * path_next_child(const char * path){
     while(*c && (*c++ == '/')){}
     while(*c && (*c++ != '/')){}
     return *c ? c : (const char *)0;
-
-
 }

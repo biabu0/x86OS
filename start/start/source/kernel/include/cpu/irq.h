@@ -42,6 +42,9 @@
 #define PIC1_IMR     0xA1
 #define PIC1_OCW2       0xA0
 
+
+#define IRQ14_HARDDISK_PRIMARY  (0x20 + 14)     //0x2E
+
 #define PIC_ICW1_ALWAYS_1       (1 << 4)
 #define PIC_ICW1_ICW4           (1 << 0)
 #define PIC_ICW4_8086           (1 << 0)

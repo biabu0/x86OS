@@ -1,13 +1,15 @@
 #ifndef FS_H
 #define FS_H
 
-#include "fs/file.h"
+#include <sys/stat.h>
+#include "file.h"
 #include "tools/list.h"
+#include "applib/lib_syscall.h"
 #include "ipc/mutex.h"
+#include "fs/fatfs/fatfs.h"
 
 #define FS_MOUNT_SIZE 32
 struct stat;
-
 struct _fs_t;
 
 typedef struct _fs_op_t{
@@ -24,20 +26,30 @@ typedef struct _fs_op_t{
 
 //文件系统类型字段
 typedef enum _fs_type_t{
+    FS_FAT16,
     FS_DEVFS,       //设备文件系统
 }fs_type_t;
 
 
 //描述一个特定的文件系统，例如 fat16文件系统,设备文件系统
-typedef struct _fs_t{
-    char mount_point[FS_MOUNT_SIZE];           ///挂载点名称
-    fs_type_t type;
-    fs_op_t * op;
-    void * data;                //fs_op_t中的函数可能会临时保存一些相关的数据，可以先保存在data中
-    int dev_id;                 //设备id; 例如磁盘上的fat16对应的分区
-    list_node_t node;           //链表的节点
-    mutex_t * mutex;            //互斥锁
+typedef struct _fs_t {
+    char mount_point[FS_MOUNT_SIZE];       // 挂载点路径长
+    fs_type_t type;              // 文件系统类型
+
+    fs_op_t * op;              // 文件系统操作接口
+    void * data;                // 文件系统的操作数据
+    int dev_id;                 // 所属的设备
+
+    list_node_t node;           // 下一结点
+
+    // 目前暂时这样设计，可能看起来不好，但是是最简单的方法
+    // 这样就不用考虑内存分配的问题
+    union {
+        fat_t fat_data;         // 文件系统相关数据
+    };
+    mutex_t * mutex;              // 文件系统操作互斥信号量
 }fs_t;
+
 
 
 void fs_init(void);
@@ -58,4 +70,5 @@ int sys_close(int file);
 int sys_fstat(int file, struct stat *st);
 int sys_isatty(int file);
 int sys_dup(int file);
+
 #endif

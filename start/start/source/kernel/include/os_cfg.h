@@ -16,4 +16,7 @@
 //整个系统中task的数量
 #define TASK_NR             128
 
+// 主设备号和次设备号  disk_2磁盘的第一个分区作为根文件系统
+#define ROOT_DEV            DEV_DISK, 0xb1
+
 #endif

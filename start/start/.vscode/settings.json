@@ -11,6 +11,8 @@
         "_default_fcntl.h": "c",
         "loader.h": "c",
         "cpu_instr.h": "c",
-        "syscall.h": "c"
+        "syscall.h": "c",
+        "disk.h": "c",
+        "mutex.h": "c"
     },
 }
